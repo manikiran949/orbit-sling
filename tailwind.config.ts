@@ -57,6 +57,13 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        game: {
+          space: "hsl(var(--game-space))",
+          planet: "hsl(var(--game-planet))",
+          trail: "hsl(var(--game-rocket-trail))",
+          asteroid: "hsl(var(--game-asteroid))",
+          glow: "hsl(var(--game-glow))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
