@@ -46,7 +46,6 @@ function generateAsteroid(minX: number): Asteroid {
 
 export function createInitialState(): GameState {
   const planets: Planet[] = [];
-  // Starting planet — rocket begins orbiting this one
   planets.push({
     x: 180,
     y: 300,
@@ -67,9 +66,8 @@ export function createInitialState(): GameState {
     asteroids.push(generateAsteroid(400 + i * 400));
   }
 
-  // Start orbiting the first planet
   const firstPlanet = planets[0];
-  const startAngle = Math.PI; // start on left side
+  const startAngle = Math.PI;
 
   return {
     rocket: {
@@ -88,18 +86,19 @@ export function createInitialState(): GameState {
     isOrbiting: true,
     orbitPlanetIndex: 0,
     orbitAngle: startAngle,
-    orbitDirection: 1, // counter-clockwise (visually)
+    orbitDirection: 1,
+    lastReleasedPlanet: -1,
     phase: 'menu',
   };
 }
 
 export function releaseRocket(state: GameState): void {
   if (!state.isOrbiting || state.orbitPlanetIndex < 0) return;
-  // Tangent direction at current orbit angle
   const tangentAngle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
   state.rocket.vx = Math.cos(tangentAngle) * ROCKET_SPEED;
   state.rocket.vy = Math.sin(tangentAngle) * ROCKET_SPEED;
   state.rocket.angle = tangentAngle;
+  state.lastReleasedPlanet = state.orbitPlanetIndex;
   state.isOrbiting = false;
   state.orbitPlanetIndex = -1;
 }
@@ -108,23 +107,31 @@ function tryAutoOrbit(state: GameState): void {
   if (state.isOrbiting) return;
   const r = state.rocket;
   for (let i = 0; i < state.planets.length; i++) {
+    // Skip the planet we just released from
+    if (i === state.lastReleasedPlanet) continue;
     const p = state.planets[i];
     const dx = r.x - p.x;
     const dy = r.y - p.y;
     const d = Math.hypot(dx, dy);
-    // Enter orbit when crossing the orbit ring from outside
-    if (d <= p.orbitRadius + 4 && d >= p.radius + 4) {
-      // Determine orbit direction based on current velocity (cross product)
+    if (d <= p.orbitRadius + 8 && d >= p.radius) {
       const cross = r.vx * dy - r.vy * dx;
-      // If cross > 0, rocket moves counter-clockwise around planet
       state.orbitDirection = cross > 0 ? 1 : -1;
       state.orbitAngle = Math.atan2(dy, dx);
       state.orbitPlanetIndex = i;
       state.isOrbiting = true;
-      // Snap exactly to orbit radius
+      state.lastReleasedPlanet = -1;
       r.x = p.x + Math.cos(state.orbitAngle) * p.orbitRadius;
       r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
       return;
+    }
+  }
+
+  // Clear lastReleasedPlanet once we're far enough away
+  if (state.lastReleasedPlanet >= 0) {
+    const lp = state.planets[state.lastReleasedPlanet];
+    const d = Math.hypot(r.x - lp.x, r.y - lp.y);
+    if (d > lp.orbitRadius + 40) {
+      state.lastReleasedPlanet = -1;
     }
   }
 }
@@ -145,18 +152,14 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
     tryAutoOrbit(state);
   }
 
-  // Trail
   r.trail.push({ x: r.x, y: r.y });
   if (r.trail.length > TRAIL_LENGTH) r.trail.shift();
 
-  // Camera follows rocket
   state.camera.x = r.x - canvasW * 0.3;
   state.camera.y = 0;
 
-  // Score = max distance traveled
   state.score = Math.max(state.score, Math.floor(r.x / 10));
 
-  // Generate more planets/asteroids ahead
   const lastPlanet = state.planets[state.planets.length - 1];
   if (r.x > lastPlanet.x - canvasW * 1.5) {
     state.planets.push(generatePlanet(lastPlanet.x));
@@ -166,15 +169,12 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
     state.asteroids.push(generateAsteroid(lastAsteroid.x + randomRange(250, 500)));
   }
 
-  // Asteroid collision
   for (const a of state.asteroids) {
     const d = Math.hypot(a.x - r.x, a.y - r.y);
     if (d < a.radius + 6) return false;
   }
 
-  // Off-screen vertical
   if (r.y < -40 || r.y > canvasH + 40) return false;
-  // Going backwards off-screen
   if (r.x < state.camera.x - 60) return false;
 
   return true;
