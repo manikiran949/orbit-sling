@@ -219,7 +219,7 @@ export function renderMenu(ctx: CanvasRenderingContext2D, w: number, h: number, 
 
   ctx.font = '14px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(224, 242, 254, 0.6)';
-  ctx.fillText('Tap & hold to orbit · Release to slingshot', w / 2, py + 90);
+  ctx.fillText('Tap to release · Auto-orbits the next planet', w / 2, py + 90);
 
   const pulse = 0.7 + 0.3 * Math.sin(time * 0.005);
   ctx.globalAlpha = pulse;
