@@ -11,8 +11,15 @@ const OrbitGame = () => {
   const resize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }, []);
 
   const handleTap = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
@@ -45,8 +52,8 @@ const OrbitGame = () => {
 
     const loop = (time: number) => {
       const state = stateRef.current;
-      const w = canvas.width;
-      const h = canvas.height;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
 
       if (state.phase === 'menu') {
         renderMenu(ctx, w, h, time, state.highScore);
