@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { createInitialState, startOrbit, releaseOrbit, update } from '@/game/engine';
+import { createInitialState, releaseRocket, update } from '@/game/engine';
 import { render, renderMenu, renderGameOver } from '@/game/renderer';
 import { GameState } from '@/game/types';
 
@@ -7,7 +7,6 @@ const OrbitGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState>(createInitialState());
   const animRef = useRef<number>(0);
-  const holdingRef = useRef(false);
 
   const resize = useCallback(() => {
     const canvas = canvasRef.current;
@@ -16,7 +15,8 @@ const OrbitGame = () => {
     canvas.height = window.innerHeight;
   }, []);
 
-  const handleDown = useCallback(() => {
+  const handleTap = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.preventDefault();
     const state = stateRef.current;
     if (state.phase === 'menu') {
       state.phase = 'playing';
@@ -29,16 +29,7 @@ const OrbitGame = () => {
       stateRef.current.phase = 'playing';
       return;
     }
-    holdingRef.current = true;
-    startOrbit(state);
-  }, []);
-
-  const handleUp = useCallback(() => {
-    holdingRef.current = false;
-    const state = stateRef.current;
-    if (state.phase === 'playing') {
-      releaseOrbit(state);
-    }
+    releaseRocket(state);
   }, []);
 
   useEffect(() => {
@@ -73,6 +64,10 @@ const OrbitGame = () => {
           const isNew = state.score >= state.highScore;
           renderGameOver(ctx, w, h, state.score, state.highScore, isNew);
         }
+      } else {
+        render(ctx, state, w, h, time);
+        const isNew = state.score >= state.highScore;
+        renderGameOver(ctx, w, h, state.score, state.highScore, isNew);
       }
 
       animRef.current = requestAnimationFrame(loop);
@@ -86,10 +81,8 @@ const OrbitGame = () => {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 touch-none cursor-pointer"
-      onMouseDown={handleDown}
-      onMouseUp={handleUp}
-      onTouchStart={handleDown}
-      onTouchEnd={handleUp}
+      onMouseDown={handleTap}
+      onTouchStart={handleTap}
     />
   );
 };
