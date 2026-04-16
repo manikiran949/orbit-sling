@@ -40,5 +40,6 @@ export interface GameState {
   orbitPlanetIndex: number;
   orbitAngle: number;
   orbitDirection: number;
+  lastReleasedPlanet: number;
   phase: 'menu' | 'playing' | 'gameover';
 }
