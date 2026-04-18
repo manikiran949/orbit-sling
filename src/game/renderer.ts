@@ -458,6 +458,53 @@ export function render(
     ctx.stroke();
   }
 
+  // Comets
+  for (const c of state.comets) {
+    if (c.x - cx < -c.radius * 4 || c.x - cx > w + c.radius * 4) continue;
+
+    // Comet tail glow (elongated gradient behind the comet)
+    const tailLen = c.radius * 5;
+    const tailX = c.x + Math.cos(c.tailAngle) * tailLen * 0.5;
+    const tailY = c.y + Math.sin(c.tailAngle) * tailLen * 0.5;
+    const tailGrad = ctx.createRadialGradient(c.x, c.y, c.radius * 0.5, tailX, tailY, tailLen);
+    tailGrad.addColorStop(0, c.glowColor);
+    tailGrad.addColorStop(0.3, c.glowColor.replace(/[\d.]+\)$/, '0.15)'));
+    tailGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = tailGrad;
+    ctx.fillRect(c.x - tailLen, c.y - tailLen, tailLen * 2, tailLen * 2);
+
+    // Comet body
+    const bodyGrad = ctx.createRadialGradient(
+      c.x - c.radius * 0.2, c.y - c.radius * 0.2, 0,
+      c.x, c.y, c.radius
+    );
+    bodyGrad.addColorStop(0, '#ffffff');
+    bodyGrad.addColorStop(0.3, c.color);
+    bodyGrad.addColorStop(1, c.color.replace(')', '').replace('rgb(', 'rgba(') ? shade(c.color, 0.5) : '#333');
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+
+    // Comet outer glow
+    const outerGlow = ctx.createRadialGradient(c.x, c.y, c.radius * 0.8, c.x, c.y, c.radius * 2.5);
+    outerGlow.addColorStop(0, c.glowColor);
+    outerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = outerGlow;
+    ctx.fillRect(c.x - c.radius * 2.5, c.y - c.radius * 2.5, c.radius * 5, c.radius * 5);
+
+    // Orbit ring (dashed)
+    ctx.save();
+    ctx.setLineDash([3, 6]);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.orbitRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = c.glowColor.replace(/[\d.]+\)$/, '0.15)');
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   // Particles
   for (const p of state.particles) {
     const a = p.life / p.maxLife;
@@ -671,6 +718,50 @@ export function render(
     ctx.lineTo(-3, 3);
     ctx.closePath();
     ctx.fill();
+    ctx.restore();
+  }
+
+  // Comet orbit indicator + tether
+  if (state.isOrbiting && state.orbitCometIndex >= 0) {
+    const c = state.comets[state.orbitCometIndex];
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.orbitRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = c.glowColor.replace(/[\d.]+\)$/, '0.4)');
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 7]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Tether
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.strokeStyle = c.glowColor.replace(/[\d.]+\)$/, '0.2)');
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Direction arrow
+    const tangentAngle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
+    const ax = r.x + Math.cos(tangentAngle) * 22;
+    const ay = r.y + Math.sin(tangentAngle) * 22;
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(tangentAngle);
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(6, 0);
+    ctx.lineTo(-3, -3);
+    ctx.lineTo(-3, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // "RIDING COMET!" HUD indicator
+    ctx.save();
+    ctx.font = '600 11px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = c.color;
+    ctx.textAlign = 'center';
+    ctx.fillText('☄️ RIDING COMET!', r.x, r.y - 25);
     ctx.restore();
   }
 
@@ -930,7 +1021,8 @@ export function renderGameOver(
   h: number,
   score: number,
   highScore: number,
-  isNew: boolean
+  isNew: boolean,
+  isCopied: boolean
 ) {
   // Dark overlay with vignette
   ctx.fillStyle = 'rgba(4, 6, 15, 0.85)';
@@ -1003,6 +1095,34 @@ export function renderGameOver(
   ctx.font = '600 16px "Inter", system-ui, sans-serif';
   ctx.fillText('TAP TO RETRY', w / 2, cardY + cardH + 40);
   ctx.restore();
+
+  // Share Score button
+  const shareBtnW = 160;
+  const shareBtnH = 36;
+  const shareBtnX = (w - shareBtnW) / 2;
+  const shareBtnY = cardY + cardH + 55;
+  ctx.beginPath();
+  ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 8);
+  
+  if (isCopied) {
+    ctx.fillStyle = 'rgba(52,211,153,0.2)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(52,211,153,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.font = '700 13px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = '#34d399';
+    ctx.fillText('✓ COPIED!', w / 2, shareBtnY + 23);
+  } else {
+    ctx.fillStyle = 'rgba(56,189,248,0.12)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.font = '600 13px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(186,230,253,0.7)';
+    ctx.fillText('📋 SHARE SCORE', w / 2, shareBtnY + 23);
+  }
 }
 
 export function renderPause(

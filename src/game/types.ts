@@ -78,6 +78,18 @@ export interface ScreenShake {
   duration: number;
 }
 
+export interface Comet {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  orbitRadius: number;
+  tailAngle: number;
+  color: string;
+  glowColor: string;
+}
+
 export interface Rocket {
   x: number;
   y: number;
@@ -91,6 +103,7 @@ export interface GameState {
   rocket: Rocket;
   planets: Planet[];
   asteroids: Asteroid[];
+  comets: Comet[];
   stars: Star[];
   nebulae: Nebula[];
   particles: Particle[];
@@ -100,6 +113,7 @@ export interface GameState {
   highScore: number;
   isOrbiting: boolean;
   orbitPlanetIndex: number;
+  orbitCometIndex: number;
   orbitAngle: number;
   orbitDirection: number;
   lastReleasedPlanet: number;
@@ -110,9 +124,12 @@ export interface GameState {
   combo: number;
   comboTimer: number;
   comboMultiplier: number;
+  maxCombo: number;
+  earthsFound: number;
   screenShake: ScreenShake;
   paused: boolean;
   settings: GameSettings;
   sunAngle: number;
   lastOrbitTime: number;
+  shareMessage: string;
 }

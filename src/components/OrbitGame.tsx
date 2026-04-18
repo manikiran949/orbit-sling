@@ -11,6 +11,7 @@ const OrbitGame = () => {
   const frameRef = useRef<number>(0);
   const audioInitRef = useRef(false);
   const draggingRef = useRef<string | null>(null);
+  const shareFlashRef = useRef(0);
 
   const initAudio = useCallback(() => {
     if (audioInitRef.current) return;
@@ -47,6 +48,34 @@ const OrbitGame = () => {
       return;
     }
     if (state.phase === 'gameover') {
+      // Check if tap is on the Share button
+      const canvas = canvasRef.current;
+      if (canvas && e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = 'touches' in (e as any) ? (e as React.TouchEvent).touches[0]?.clientX : (e as React.MouseEvent).clientX;
+        const clientY = 'touches' in (e as any) ? (e as React.TouchEvent).touches[0]?.clientY : (e as React.MouseEvent).clientY;
+        if (clientX !== undefined && clientY !== undefined) {
+          const mx = clientX - rect.left;
+          const my = clientY - rect.top;
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          const cardW = Math.min(280, w * 0.8);
+          const cardH = 220;
+          const cardY = (h - cardH) / 2 - 10;
+          const shareBtnW = 160;
+          const shareBtnH = 36;
+          const shareBtnX = (w - shareBtnW) / 2;
+          const shareBtnY = cardY + cardH + 55;
+          if (mx >= shareBtnX && mx <= shareBtnX + shareBtnW && my >= shareBtnY && my <= shareBtnY + shareBtnH) {
+            navigator.clipboard.writeText(state.shareMessage).then(() => {
+              // Brief visual feedback — swap button text via state
+              shareFlashRef.current = 60;
+            }).catch(() => { /* clipboard failed silently */ });
+            audio.playClick();
+            return;
+          }
+        }
+      }
       const hs = state.highScore;
       const settings = state.settings;
       stateRef.current = createInitialState();
@@ -183,15 +212,17 @@ const OrbitGame = () => {
           }
           render(ctx, state, w, h, time);
           if (state.phase === 'gameover') {
+            if (shareFlashRef.current > 0) shareFlashRef.current--;
             const isNew = state.score >= state.highScore;
-            renderGameOver(ctx, w, h, state.score, state.highScore, isNew);
+            renderGameOver(ctx, w, h, state.score, state.highScore, isNew, shareFlashRef.current > 0);
           }
         }
       } else {
+        if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
         const isNew = state.score >= state.highScore;
-        renderGameOver(ctx, w, h, state.score, state.highScore, isNew);
+        renderGameOver(ctx, w, h, state.score, state.highScore, isNew, shareFlashRef.current > 0);
       }
 
       animRef.current = requestAnimationFrame(loop);

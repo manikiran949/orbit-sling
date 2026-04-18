@@ -1,7 +1,8 @@
-import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings } from './types';
+import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings, Comet } from './types';
 
 const ROCKET_SPEED = 4.2;
 const ORBIT_SPEED = 0.05;
+const COMET_ORBIT_SPEED = 0.07;
 const TRAIL_LENGTH = 60;
 const COMBO_WINDOW = 120; // frames (~2 seconds at 60fps)
 
@@ -191,6 +192,27 @@ function generateSolarFlare(minX: number, canvasH: number): SolarFlare {
   };
 }
 
+function generateComet(minX: number, canvasH: number): Comet {
+  const radius = rand(12, 20);
+  const colors = [
+    { color: '#67e8f9', glow: 'rgba(103,232,249,0.5)' },
+    { color: '#c4b5fd', glow: 'rgba(196,181,253,0.5)' },
+    { color: '#fcd34d', glow: 'rgba(252,211,77,0.5)' },
+  ];
+  const c = colors[Math.floor(Math.random() * colors.length)];
+  return {
+    x: minX + rand(800, 1500),
+    y: rand(100, canvasH - 100),
+    vx: rand(1.5, 3.0),
+    vy: rand(-0.3, 0.3),
+    radius,
+    orbitRadius: radius + rand(30, 45),
+    tailAngle: Math.PI + rand(-0.3, 0.3),
+    color: c.color,
+    glowColor: c.glow,
+  };
+}
+
 export function createInitialState(): GameState {
   const planets: Planet[] = [];
   // Hand-tuned starting planet
@@ -241,6 +263,7 @@ export function createInitialState(): GameState {
     },
     planets,
     asteroids,
+    comets: [],
     stars: generateStars(),
     nebulae: generateNebulae(),
     particles: [],
@@ -250,6 +273,7 @@ export function createInitialState(): GameState {
     highScore: parseInt(localStorage.getItem('orbitHighScore') || '0'),
     isOrbiting: true,
     orbitPlanetIndex: 0,
+    orbitCometIndex: -1,
     orbitAngle: startAngle,
     orbitDirection: 1,
     lastReleasedPlanet: -1,
@@ -260,11 +284,14 @@ export function createInitialState(): GameState {
     combo: 0,
     comboTimer: 0,
     comboMultiplier: 1,
+    maxCombo: 0,
+    earthsFound: 0,
     screenShake: { intensity: 0, duration: 0 },
     paused: false,
     settings: loadSettings(),
     sunAngle: -Math.PI / 4,
     lastOrbitTime: 0,
+    shareMessage: '',
   };
 }
 
@@ -274,17 +301,37 @@ export function togglePause(state: GameState): void {
 }
 
 export function releaseRocket(state: GameState): void {
-  if (!state.isOrbiting || state.orbitPlanetIndex < 0) return;
+  if (!state.isOrbiting) return;
+  if (state.orbitPlanetIndex < 0 && state.orbitCometIndex < 0) return;
+
   const tangentAngle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
-  state.rocket.vx = Math.cos(tangentAngle) * ROCKET_SPEED;
-  state.rocket.vy = Math.sin(tangentAngle) * ROCKET_SPEED;
+
+  // Comet release gives a speed boost!
+  const speed = state.orbitCometIndex >= 0 ? ROCKET_SPEED * 1.8 : ROCKET_SPEED;
+  state.rocket.vx = Math.cos(tangentAngle) * speed;
+  state.rocket.vy = Math.sin(tangentAngle) * speed;
   state.rocket.angle = tangentAngle;
+
+  // If releasing from comet, add the comet's own velocity
+  if (state.orbitCometIndex >= 0) {
+    const comet = state.comets[state.orbitCometIndex];
+    state.rocket.vx += comet.vx * 0.5;
+    state.rocket.vy += comet.vy * 0.5;
+    state.orbitCometIndex = -1;
+    // Score bonus for riding a comet
+    state.score += 100;
+    state.scoreBonus = 100;
+    state.scoreBonusTimer = 90;
+  }
+
   state.lastReleasedPlanet = state.orbitPlanetIndex;
   state.isOrbiting = false;
   state.orbitPlanetIndex = -1;
 
   // Burst particles on release
-  const p = state.planets[state.lastReleasedPlanet];
+  const burstColor = state.lastReleasedPlanet >= 0
+    ? state.planets[state.lastReleasedPlanet].color
+    : '#67e8f9';
   for (let i = 0; i < 12; i++) {
     const a = Math.random() * Math.PI * 2;
     const sp = rand(0.5, 2.5);
@@ -295,7 +342,7 @@ export function releaseRocket(state: GameState): void {
       vy: Math.sin(a) * sp,
       life: 30,
       maxLife: 30,
-      color: p.color,
+      color: burstColor,
       size: rand(1.5, 3),
     });
   }
@@ -336,6 +383,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         state.comboMultiplier = 1;
       }
       state.comboTimer = COMBO_WINDOW;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
       state.lastOrbitTime = frameCount;
 
       // Capture sparkle
@@ -357,6 +405,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
 
       // Earth bonus!
       if (p.planetType === 'earth') {
+        state.earthsFound += 1;
         const bonus = 50;
         state.score += bonus;
         state.scoreBonus = bonus;
@@ -379,6 +428,54 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         }
       }
       return true; // captured
+    }
+  }
+
+  // Try comet capture
+  for (let i = 0; i < state.comets.length; i++) {
+    const c = state.comets[i];
+    const dx = r.x - c.x;
+    const dy = r.y - c.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= c.orbitRadius + 8 && d >= c.radius) {
+      const cross = (r.vx - c.vx) * dy - (r.vy - c.vy) * dx;
+      state.orbitDirection = cross > 0 ? 1 : -1;
+      state.orbitAngle = Math.atan2(dy, dx);
+      state.orbitCometIndex = i;
+      state.orbitPlanetIndex = -1;
+      state.isOrbiting = true;
+      state.lastReleasedPlanet = -1;
+      r.x = c.x + Math.cos(state.orbitAngle) * c.orbitRadius;
+      r.y = c.y + Math.sin(state.orbitAngle) * c.orbitRadius;
+
+      state.screenShake = { intensity: 4, duration: 10 };
+
+      // Combo system for comet capture too
+      if (state.comboTimer > 0) {
+        state.combo += 1;
+        state.comboMultiplier = Math.min(5, 1 + state.combo * 0.5);
+        const comboBonus = Math.floor(10 * state.comboMultiplier);
+        state.score += comboBonus;
+      } else {
+        state.combo = 1;
+        state.comboMultiplier = 1;
+      }
+      state.comboTimer = COMBO_WINDOW;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+      state.lastOrbitTime = frameCount;
+
+      // Sparkle particles
+      const pCount = state.settings.lowGraphics ? 8 : 16;
+      for (let k = 0; k < pCount; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = rand(0.3, 1.8);
+        state.particles.push({
+          x: r.x, y: r.y,
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+          life: 40, maxLife: 40, color: c.color, size: rand(1, 2.5),
+        });
+      }
+      return true;
     }
   }
 
@@ -472,6 +569,13 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     r.x = p.x + Math.cos(state.orbitAngle) * p.orbitRadius;
     r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
     r.angle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
+  } else if (state.isOrbiting && state.orbitCometIndex >= 0) {
+    // Orbiting a comet — ride along with it!
+    const c = state.comets[state.orbitCometIndex];
+    state.orbitAngle += COMET_ORBIT_SPEED * state.orbitDirection;
+    r.x = c.x + Math.cos(state.orbitAngle) * c.orbitRadius;
+    r.y = c.y + Math.sin(state.orbitAngle) * c.orbitRadius;
+    r.angle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
   } else {
     // Check solar flare slowdown
     let inFlare = false;
@@ -482,8 +586,6 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
       }
     }
     if (inFlare) {
-      r.vx *= 0.97; // Gradual slowdown
-      r.vy *= 0.97;
       // Warning particles
       if (Math.random() < 0.3) {
         state.particles.push({
@@ -499,8 +601,10 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
       }
     }
 
-    r.x += r.vx;
-    r.y += r.vy;
+    // Move rocket — slow inside flares, full speed outside
+    const moveScale = inFlare ? 0.5 : 1;
+    r.x += r.vx * moveScale;
+    r.y += r.vy * moveScale;
     r.angle = Math.atan2(r.vy, r.vx);
     tryAutoOrbit(state, frameCount);
 
@@ -526,6 +630,26 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   }
   for (const a of state.asteroids) {
     a.rotation += a.spin;
+  }
+
+  // Move comets
+  for (const c of state.comets) {
+    c.x += c.vx;
+    c.y += c.vy;
+    c.tailAngle = Math.atan2(-c.vy, -c.vx);
+    // Comet tail particles
+    if (!state.settings.lowGraphics && Math.random() < 0.5) {
+      state.particles.push({
+        x: c.x + Math.cos(c.tailAngle) * c.radius,
+        y: c.y + Math.sin(c.tailAngle) * c.radius,
+        vx: Math.cos(c.tailAngle) * rand(0.5, 1.5) + rand(-0.2, 0.2),
+        vy: Math.sin(c.tailAngle) * rand(0.5, 1.5) + rand(-0.2, 0.2),
+        life: 30,
+        maxLife: 30,
+        color: c.color,
+        size: rand(1, 2.5),
+      });
+    }
   }
 
   r.trail.push({ x: r.x, y: r.y });
@@ -557,6 +681,14 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   }
   // Remove old solar flares behind camera
   state.solarFlares = state.solarFlares.filter(f => f.x + f.width > state.camera.x - 200);
+
+  // Generate comets (spawn one every ~2000px)
+  if (state.comets.length === 0 || r.x > state.comets[state.comets.length - 1].x - canvasW * 2) {
+    const lastCometX = state.comets.length > 0 ? state.comets[state.comets.length - 1].x : r.x;
+    state.comets.push(generateComet(lastCometX, canvasH));
+  }
+  // Remove comets that have gone far behind
+  state.comets = state.comets.filter(c => c.x > state.camera.x - 400);
 
   // Extend stars/nebulae as we travel
   if (state.stars.length > 0) {
@@ -591,18 +723,38 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     const d = Math.hypot(a.x - r.x, a.y - r.y);
     if (d < a.radius + 6) {
       spawnDeathExplosion(state);
+      buildShareMessage(state);
       return false;
     }
   }
 
   if (r.y < -40 || r.y > canvasH + 40) {
     spawnDeathExplosion(state);
+    buildShareMessage(state);
     return false;
   }
   if (r.x < state.camera.x - 60) {
     spawnDeathExplosion(state);
+    buildShareMessage(state);
     return false;
   }
 
   return true;
+}
+
+export function buildShareMessage(state: GameState): void {
+  const lines = [
+    '🚀 ORBIT SLINGSHOT 🚀',
+    '━━━━━━━━━━━━━━━━━━━━',
+    `🏆 Score: ${state.score.toLocaleString()}m`
+  ];
+  
+  if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
+  if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
+  
+  lines.push('');
+  lines.push('I survived the glass plains! Can you beat my score?');
+  lines.push('🔗 https://orbit-slingshot.vercel.app');
+  
+  state.shareMessage = lines.join('\n');
 }
