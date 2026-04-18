@@ -17,7 +17,130 @@ function shade(hex: string, factor: number): string {
   return `rgb(${nr},${ng},${nb})`;
 }
 
+function drawEarth(ctx: CanvasRenderingContext2D, p: Planet) {
+  const r = p.radius;
+
+  // Atmosphere glow — soft blue
+  const outerGlow = ctx.createRadialGradient(p.x, p.y, r * 0.85, p.x, p.y, r * 2.8);
+  outerGlow.addColorStop(0, 'rgba(80,160,255,0.22)');
+  outerGlow.addColorStop(0.5, 'rgba(60,140,220,0.08)');
+  outerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = outerGlow;
+  ctx.fillRect(p.x - r * 3, p.y - r * 3, r * 6, r * 6);
+
+  // Ocean body
+  const bodyGrad = ctx.createRadialGradient(
+    p.x - r * 0.3, p.y - r * 0.3, r * 0.05,
+    p.x, p.y, r
+  );
+  bodyGrad.addColorStop(0, '#5b9df5');
+  bodyGrad.addColorStop(0.35, '#2563eb');
+  bodyGrad.addColorStop(0.7, '#1d4ed8');
+  bodyGrad.addColorStop(1, '#1e3a6e');
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // Continents — small clusters of circles, muted earthy tones
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rotation);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.96, 0, Math.PI * 2);
+  ctx.clip();
+
+  const lands = [
+    { x: -r*0.32, y: -r*0.3, s: r*0.1, a: 0.45 },
+    { x: -r*0.25, y: -r*0.2, s: r*0.12, a: 0.4 },
+    { x: -r*0.28, y: -r*0.1, s: r*0.08, a: 0.35 },
+    { x: -r*0.22, y: 0.0, s: r*0.07, a: 0.3 },
+    { x: -r*0.18, y: r*0.1, s: r*0.06, a: 0.25 },
+    { x: r*0.15, y: -r*0.25, s: r*0.09, a: 0.4 },
+    { x: r*0.25, y: -r*0.18, s: r*0.11, a: 0.45 },
+    { x: r*0.35, y: -r*0.12, s: r*0.08, a: 0.35 },
+    { x: r*0.28, y: -r*0.05, s: r*0.07, a: 0.3 },
+    { x: r*0.08, y: r*0.2, s: r*0.09, a: 0.4 },
+    { x: r*0.12, y: r*0.3, s: r*0.08, a: 0.35 },
+    { x: r*0.05, y: r*0.35, s: r*0.06, a: 0.25 },
+    { x: -r*0.05, y: -r*0.5, s: r*0.05, a: 0.3 },
+  ];
+  for (const d of lands) {
+    const cg = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.s);
+    cg.addColorStop(0, `rgba(55,120,55,${d.a})`);
+    cg.addColorStop(0.7, `rgba(70,110,45,${d.a * 0.6})`);
+    cg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Cloud wisps
+  ctx.globalAlpha = 0.13;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.ellipse(-r*0.35, -r*0.08, r*0.2, r*0.022, 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(r*0.15, -r*0.3, r*0.16, r*0.018, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(r*0.05, r*0.22, r*0.14, r*0.016, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Specular highlight
+  const hg = ctx.createRadialGradient(
+    p.x - r * 0.38, p.y - r * 0.38, 0,
+    p.x - r * 0.38, p.y - r * 0.38, r * 0.5
+  );
+  hg.addColorStop(0, 'rgba(255,255,255,0.45)');
+  hg.addColorStop(0.35, 'rgba(255,255,255,0.1)');
+  hg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = hg;
+  ctx.fill();
+
+  // Terminator shadow
+  const tg = ctx.createRadialGradient(
+    p.x + r * 0.5, p.y + r * 0.5, 0,
+    p.x + r * 0.35, p.y + r * 0.35, r * 1.1
+  );
+  tg.addColorStop(0, 'rgba(0,0,0,0.45)');
+  tg.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+  tg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = tg;
+  ctx.fill();
+
+  // Thin atmosphere rim
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r + 1, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(100,180,255,0.18)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Orbit ring
+  ctx.save();
+  ctx.setLineDash([4, 8]);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.orbitRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(59,130,246,0.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 function drawPlanet(ctx: CanvasRenderingContext2D, p: Planet) {
+  if (p.planetType === 'earth') {
+    drawEarth(ctx, p);
+    return;
+  }
   const [cr, cg_val, cb] = hexToRgb(p.color);
 
   // Layered atmospheric glow — soft outer + vivid inner
@@ -341,59 +464,139 @@ export function render(
   ctx.translate(r.x, r.y);
   ctx.rotate(r.angle);
 
-  // Engine flame
-  const flameSize = 10 + Math.sin(time * 0.025) * 3;
-  const flameGrad = ctx.createLinearGradient(-8, 0, -8 - flameSize, 0);
-  flameGrad.addColorStop(0, '#fef3c7');
-  flameGrad.addColorStop(0.4, '#f59e0b');
-  flameGrad.addColorStop(1, 'rgba(220,38,38,0)');
-  ctx.fillStyle = flameGrad;
+  // Ambient glow around rocket
+  const rocketGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 22);
+  rocketGlow.addColorStop(0, 'rgba(56,189,248,0.12)');
+  rocketGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = rocketGlow;
+  ctx.fillRect(-22, -22, 44, 44);
+
+  // Engine flame — multi-layered animated
+  const flicker1 = Math.sin(time * 0.03) * 0.3 + 1;
+  const flicker2 = Math.sin(time * 0.05 + 1) * 0.2 + 1;
+  const flameLen = 14 * flicker1;
+  const flameLen2 = 10 * flicker2;
+
+  // Outer flame (red-orange glow)
+  const outerFlame = ctx.createLinearGradient(-9, 0, -9 - flameLen, 0);
+  outerFlame.addColorStop(0, 'rgba(251,146,60,0.8)');
+  outerFlame.addColorStop(0.5, 'rgba(220,38,38,0.4)');
+  outerFlame.addColorStop(1, 'rgba(220,38,38,0)');
+  ctx.fillStyle = outerFlame;
   ctx.beginPath();
-  ctx.moveTo(-7, -4);
-  ctx.lineTo(-8 - flameSize, 0);
-  ctx.lineTo(-7, 4);
+  ctx.moveTo(-9, -5);
+  ctx.lineTo(-9 - flameLen, 0);
+  ctx.lineTo(-9, 5);
   ctx.closePath();
   ctx.fill();
 
-  // Rocket body — sleek shape
+  // Inner flame (white-hot core)
+  const innerFlame = ctx.createLinearGradient(-9, 0, -9 - flameLen2, 0);
+  innerFlame.addColorStop(0, '#fef3c7');
+  innerFlame.addColorStop(0.5, '#fbbf24');
+  innerFlame.addColorStop(1, 'rgba(251,191,36,0)');
+  ctx.fillStyle = innerFlame;
   ctx.beginPath();
-  ctx.moveTo(13, 0);
-  ctx.lineTo(-2, -5);
-  ctx.lineTo(-8, -5);
-  ctx.lineTo(-8, 5);
-  ctx.lineTo(-2, 5);
+  ctx.moveTo(-9, -3);
+  ctx.lineTo(-9 - flameLen2, 0);
+  ctx.lineTo(-9, 3);
   ctx.closePath();
-  const bodyGrad = ctx.createLinearGradient(0, -5, 0, 5);
-  bodyGrad.addColorStop(0, '#f0f9ff');
-  bodyGrad.addColorStop(0.5, '#bae6fd');
+  ctx.fill();
+
+  // Fins — swept back, larger
+  const finGrad = ctx.createLinearGradient(0, -6, 0, -10);
+  finGrad.addColorStop(0, '#0369a1');
+  finGrad.addColorStop(1, '#0284c7');
+  ctx.fillStyle = finGrad;
+  ctx.beginPath();
+  ctx.moveTo(-5, -6);
+  ctx.lineTo(-11, -10);
+  ctx.lineTo(-8, -10);
+  ctx.lineTo(-2, -6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#0c4a6e';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  const finGrad2 = ctx.createLinearGradient(0, 6, 0, 10);
+  finGrad2.addColorStop(0, '#0369a1');
+  finGrad2.addColorStop(1, '#0284c7');
+  ctx.fillStyle = finGrad2;
+  ctx.beginPath();
+  ctx.moveTo(-5, 6);
+  ctx.lineTo(-11, 10);
+  ctx.lineTo(-8, 10);
+  ctx.lineTo(-2, 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#0c4a6e';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Rocket body — sleek with metallic gradient
+  ctx.beginPath();
+  ctx.moveTo(16, 0);
+  ctx.quadraticCurveTo(10, -6, -2, -6);
+  ctx.lineTo(-9, -5);
+  ctx.lineTo(-9, 5);
+  ctx.lineTo(-2, 6);
+  ctx.quadraticCurveTo(10, 6, 16, 0);
+  ctx.closePath();
+  const bodyGrad = ctx.createLinearGradient(0, -6, 0, 6);
+  bodyGrad.addColorStop(0, '#e0f2fe');
+  bodyGrad.addColorStop(0.3, '#bae6fd');
+  bodyGrad.addColorStop(0.5, '#7dd3fc');
+  bodyGrad.addColorStop(0.7, '#38bdf8');
   bodyGrad.addColorStop(1, '#0284c7');
   ctx.fillStyle = bodyGrad;
   ctx.fill();
   ctx.strokeStyle = '#0c4a6e';
-  ctx.lineWidth = 0.8;
+  ctx.lineWidth = 0.7;
   ctx.stroke();
 
-  // Cockpit window
+  // Panel line detail
   ctx.beginPath();
-  ctx.arc(4, 0, 2.2, 0, Math.PI * 2);
-  ctx.fillStyle = '#22d3ee';
+  ctx.moveTo(-4, -5.5);
+  ctx.lineTo(-4, 5.5);
+  ctx.strokeStyle = 'rgba(12,74,110,0.3)';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Engine nozzle
+  ctx.beginPath();
+  ctx.moveTo(-9, -4.5);
+  ctx.lineTo(-10.5, -5);
+  ctx.lineTo(-10.5, 5);
+  ctx.lineTo(-9, 4.5);
+  ctx.closePath();
+  ctx.fillStyle = '#475569';
+  ctx.fill();
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Cockpit window — glowing
+  ctx.save();
+  ctx.shadowColor = 'rgba(34,211,238,0.5)';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(6, 0, 2.8, 0, Math.PI * 2);
+  const cockpitGrad = ctx.createRadialGradient(5.5, -0.5, 0, 6, 0, 2.8);
+  cockpitGrad.addColorStop(0, '#a5f3fc');
+  cockpitGrad.addColorStop(0.5, '#22d3ee');
+  cockpitGrad.addColorStop(1, '#0891b2');
+  ctx.fillStyle = cockpitGrad;
   ctx.fill();
   ctx.strokeStyle = '#0c4a6e';
+  ctx.lineWidth = 0.6;
   ctx.stroke();
+  ctx.restore();
 
-  // Fins
-  ctx.fillStyle = '#0284c7';
+  // Nose tip highlight
   ctx.beginPath();
-  ctx.moveTo(-6, -5);
-  ctx.lineTo(-9, -8);
-  ctx.lineTo(-3, -5);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-6, 5);
-  ctx.lineTo(-9, 8);
-  ctx.lineTo(-3, 5);
-  ctx.closePath();
+  ctx.arc(14, 0, 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.fill();
 
   ctx.restore();
@@ -474,6 +677,24 @@ export function render(
   ctx.fillStyle = 'rgba(186, 230, 253, 0.75)';
   ctx.fillText(`${state.highScore}`, w - 26, 58);
   ctx.restore();
+
+  // Score bonus popup
+  if (state.scoreBonusTimer > 0) {
+    const bonusAlpha = Math.min(1, state.scoreBonusTimer / 30);
+    const bonusY = h * 0.35 - (90 - state.scoreBonusTimer) * 0.5;
+    ctx.save();
+    ctx.globalAlpha = bonusAlpha;
+    ctx.shadowColor = 'rgba(52,211,153,0.6)';
+    ctx.shadowBlur = 15;
+    ctx.textAlign = 'center';
+    ctx.font = '800 28px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = '#34d399';
+    ctx.fillText(`+${state.scoreBonus}`, w / 2, bonusY);
+    ctx.font = '500 12px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = '#6ee7b7';
+    ctx.fillText('EARTH BONUS!', w / 2, bonusY + 20);
+    ctx.restore();
+  }
 }
 
 export function renderMenu(
@@ -571,6 +792,7 @@ export function renderMenu(
       { x: 8, y: -14, r: 4 },
     ],
     rotation: time * 0.0006,
+    planetType: 'gas',
   };
   drawPlanet(ctx, planet);
 

@@ -3,6 +3,8 @@ export interface Vec2 {
   y: number;
 }
 
+export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
+
 export interface Planet {
   x: number;
   y: number;
@@ -15,6 +17,7 @@ export interface Planet {
   ringTilt: number;
   craters: { x: number; y: number; r: number }[];
   rotation: number;
+  planetType: PlanetType;
 }
 
 export interface Asteroid {
@@ -80,4 +83,6 @@ export interface GameState {
   lastReleasedPlanet: number;
   difficulty: number;
   phase: 'menu' | 'playing' | 'gameover';
+  scoreBonus: number;
+  scoreBonusTimer: number;
 }

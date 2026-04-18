@@ -1,4 +1,4 @@
-import { GameState, Planet, Asteroid, Star, Nebula, Particle } from './types';
+import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle } from './types';
 
 const ROCKET_SPEED = 4.2;
 const ORBIT_SPEED = 0.05;
@@ -40,7 +40,6 @@ function rand(min: number, max: number) {
 }
 
 function generatePlanet(minX: number, difficulty = 0): Planet {
-  const c = PLANET_PALETTES[Math.floor(Math.random() * PLANET_PALETTES.length)];
   // Difficulty: smaller planets, farther apart over time
   const radiusMin = Math.max(16, 26 - difficulty * 2);
   const radiusMax = Math.max(24, 44 - difficulty * 3);
@@ -48,8 +47,52 @@ function generatePlanet(minX: number, difficulty = 0): Planet {
   const spacingMin = 220 + difficulty * 30;
   const spacingMax = 380 + difficulty * 60;
 
+  // Determine planet type
+  const typeRoll = Math.random();
+  let planetType: PlanetType;
+  if (typeRoll < 0.15) planetType = 'earth';
+  else if (typeRoll < 0.30) planetType = 'ice';
+  else if (typeRoll < 0.45) planetType = 'lava';
+  else if (typeRoll < 0.65) planetType = 'gas';
+  else planetType = 'rocky';
+
+  // Choose colors based on type
+  let color: string, glow: string, accent: string;
+  switch (planetType) {
+    case 'earth':
+      color = '#3b82f6';
+      glow = 'rgba(59,130,246,0.45)';
+      accent = '#16a34a';
+      break;
+    case 'ice':
+      color = '#67e8f9';
+      glow = 'rgba(103,232,249,0.45)';
+      accent = '#0e7490';
+      break;
+    case 'lava':
+      color = '#ef4444';
+      glow = 'rgba(239,68,68,0.45)';
+      accent = '#f97316';
+      break;
+    case 'gas': {
+      const gasPalettes = [
+        { color: '#e8a838', glow: 'rgba(232,168,56,0.45)', accent: '#b87a1c' },
+        { color: '#a78bfa', glow: 'rgba(167,139,250,0.45)', accent: '#6d4cc4' },
+        { color: '#fb923c', glow: 'rgba(251,146,60,0.45)', accent: '#c2410c' },
+      ];
+      const gp = gasPalettes[Math.floor(Math.random() * gasPalettes.length)];
+      color = gp.color; glow = gp.glow; accent = gp.accent;
+      break;
+    }
+    default: {
+      const c = PLANET_PALETTES[Math.floor(Math.random() * PLANET_PALETTES.length)];
+      color = c.color; glow = c.glow; accent = c.accent;
+      break;
+    }
+  }
+
   const craters: { x: number; y: number; r: number }[] = [];
-  const craterCount = Math.floor(rand(2, 5));
+  const craterCount = planetType === 'gas' ? 0 : Math.floor(rand(2, 5));
   for (let i = 0; i < craterCount; i++) {
     const a = Math.random() * Math.PI * 2;
     const d = Math.random() * radius * 0.65;
@@ -65,13 +108,14 @@ function generatePlanet(minX: number, difficulty = 0): Planet {
     y: rand(140, 460),
     radius,
     orbitRadius: radius + rand(40, 60),
-    color: c.color,
-    glowColor: c.glow,
-    accentColor: c.accent,
-    hasRing: Math.random() < 0.3,
+    color,
+    glowColor: glow,
+    accentColor: accent,
+    hasRing: planetType === 'gas' ? Math.random() < 0.5 : Math.random() < 0.15,
     ringTilt: rand(-0.4, 0.4),
     craters,
     rotation: Math.random() * Math.PI * 2,
+    planetType,
   };
 }
 
@@ -140,6 +184,7 @@ export function createInitialState(): GameState {
       { x: -3, y: 14, r: 3 },
     ],
     rotation: 0,
+    planetType: 'rocky',
   });
 
   // More starting planets, easier spacing
@@ -183,6 +228,8 @@ export function createInitialState(): GameState {
     lastReleasedPlanet: -1,
     difficulty: 0,
     phase: 'menu',
+    scoreBonus: 0,
+    scoreBonusTimer: 0,
   };
 }
 
@@ -248,6 +295,29 @@ function tryAutoOrbit(state: GameState): void {
           size: rand(1, 2.5),
         });
       }
+
+      // Earth bonus!
+      if (p.planetType === 'earth') {
+        const bonus = 50;
+        state.score += bonus;
+        state.scoreBonus = bonus;
+        state.scoreBonusTimer = 90;
+        // Extra green/blue sparkle burst
+        for (let k = 0; k < 24; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = rand(1, 3);
+          state.particles.push({
+            x: r.x,
+            y: r.y,
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp,
+            life: 50,
+            maxLife: 50,
+            color: k % 2 === 0 ? '#34d399' : '#60a5fa',
+            size: rand(2, 4),
+          });
+        }
+      }
       return;
     }
   }
@@ -277,6 +347,11 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
 
   // Difficulty ramps slowly with distance
   state.difficulty = Math.min(5, state.score / 500);
+
+  // Score bonus timer
+  if (state.scoreBonusTimer > 0) {
+    state.scoreBonusTimer -= 1;
+  }
 
   if (state.isOrbiting && state.orbitPlanetIndex >= 0) {
     const p = state.planets[state.orbitPlanetIndex];
