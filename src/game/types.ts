@@ -33,6 +33,7 @@ export interface Star {
   brightness: number;
   twinkleSpeed: number;
   parallax: number;
+  color: string;
 }
 
 export interface Nebula {

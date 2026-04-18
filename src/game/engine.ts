@@ -5,20 +5,34 @@ const ORBIT_SPEED = 0.05;
 const TRAIL_LENGTH = 60;
 
 const PLANET_PALETTES = [
-  { color: '#e8a838', glow: 'rgba(232,168,56,0.45)', accent: '#b87a1c' },
-  { color: '#38bdf8', glow: 'rgba(56,189,248,0.45)', accent: '#0c7ba8' },
-  { color: '#f472b6', glow: 'rgba(244,114,182,0.45)', accent: '#b53d80' },
-  { color: '#a78bfa', glow: 'rgba(167,139,250,0.45)', accent: '#6d4cc4' },
-  { color: '#34d399', glow: 'rgba(52,211,153,0.45)', accent: '#0e8a64' },
-  { color: '#fb7185', glow: 'rgba(251,113,133,0.45)', accent: '#be3a52' },
-  { color: '#facc15', glow: 'rgba(250,204,21,0.45)', accent: '#a17a08' },
+  { color: '#e8a838', glow: 'rgba(232,168,56,0.45)', accent: '#b87a1c' },    // Gold
+  { color: '#38bdf8', glow: 'rgba(56,189,248,0.45)', accent: '#0c7ba8' },    // Cyan
+  { color: '#f472b6', glow: 'rgba(244,114,182,0.45)', accent: '#b53d80' },   // Pink
+  { color: '#a78bfa', glow: 'rgba(167,139,250,0.45)', accent: '#6d4cc4' },   // Violet
+  { color: '#34d399', glow: 'rgba(52,211,153,0.45)', accent: '#0e8a64' },    // Emerald
+  { color: '#fb7185', glow: 'rgba(251,113,133,0.45)', accent: '#be3a52' },   // Rose
+  { color: '#facc15', glow: 'rgba(250,204,21,0.45)', accent: '#a17a08' },    // Amber
+  { color: '#2dd4bf', glow: 'rgba(45,212,191,0.45)', accent: '#0d9488' },    // Teal
+  { color: '#fb923c', glow: 'rgba(251,146,60,0.45)', accent: '#c2410c' },    // Coral
+  { color: '#818cf8', glow: 'rgba(129,140,248,0.45)', accent: '#4f46e5' },   // Indigo
 ];
 
 const NEBULA_COLORS = [
-  'rgba(167,139,250,0.10)',
-  'rgba(56,189,248,0.10)',
-  'rgba(244,114,182,0.08)',
-  'rgba(52,211,153,0.08)',
+  'rgba(100,80,200,0.07)',
+  'rgba(40,120,200,0.06)',
+  'rgba(180,60,120,0.05)',
+  'rgba(30,150,130,0.05)',
+  'rgba(60,60,160,0.06)',
+  'rgba(140,50,180,0.05)',
+];
+
+const STAR_COLORS = [
+  '#ffffff',   // white
+  '#cbe5ff',   // cool blue-white
+  '#a8d8ff',   // light blue
+  '#fff5e0',   // warm white
+  '#ffe4c4',   // warm peach
+  '#d4e4ff',   // pale blue
 ];
 
 function rand(min: number, max: number) {
@@ -80,14 +94,15 @@ function generateAsteroid(minX: number): Asteroid {
 
 function generateStars(): Star[] {
   const stars: Star[] = [];
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 300; i++) {
     stars.push({
       x: rand(0, 4000),
       y: rand(0, 700),
-      size: rand(0.5, 2.2),
-      brightness: rand(0.3, 1),
-      twinkleSpeed: rand(0.001, 0.004),
-      parallax: rand(0.1, 0.5),
+      size: rand(0.3, 2.0),
+      brightness: rand(0.2, 1),
+      twinkleSpeed: rand(0.001, 0.003),
+      parallax: rand(0.05, 0.45),
+      color: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)],
     });
   }
   return stars;
@@ -95,11 +110,11 @@ function generateStars(): Star[] {
 
 function generateNebulae(): Nebula[] {
   const nebs: Nebula[] = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     nebs.push({
-      x: rand(0, 4000),
-      y: rand(50, 600),
-      radius: rand(150, 300),
+      x: rand(0, 5000),
+      y: rand(30, 620),
+      radius: rand(180, 400),
       color: NEBULA_COLORS[Math.floor(Math.random() * NEBULA_COLORS.length)],
     });
   }
@@ -322,14 +337,15 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
   if (state.stars.length > 0) {
     const maxStarX = state.stars.reduce((m, s) => Math.max(m, s.x), 0);
     if (r.x > maxStarX - canvasW * 2) {
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 80; i++) {
         state.stars.push({
           x: maxStarX + rand(0, 2000),
           y: rand(0, canvasH),
-          size: rand(0.5, 2.2),
-          brightness: rand(0.3, 1),
-          twinkleSpeed: rand(0.001, 0.004),
-          parallax: rand(0.1, 0.5),
+          size: rand(0.3, 2.0),
+          brightness: rand(0.2, 1),
+          twinkleSpeed: rand(0.001, 0.003),
+          parallax: rand(0.05, 0.45),
+          color: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)],
         });
       }
     }
