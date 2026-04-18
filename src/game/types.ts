@@ -57,6 +57,27 @@ export interface Particle {
   size: number;
 }
 
+export interface SolarFlare {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  speed: number;
+  color: string;
+  opacity: number;
+}
+
+export interface GameSettings {
+  musicVolume: number;
+  sfxVolume: number;
+  lowGraphics: boolean;
+}
+
+export interface ScreenShake {
+  intensity: number;
+  duration: number;
+}
+
 export interface Rocket {
   x: number;
   y: number;
@@ -73,6 +94,7 @@ export interface GameState {
   stars: Star[];
   nebulae: Nebula[];
   particles: Particle[];
+  solarFlares: SolarFlare[];
   camera: Vec2;
   score: number;
   highScore: number;
@@ -85,4 +107,12 @@ export interface GameState {
   phase: 'menu' | 'playing' | 'gameover';
   scoreBonus: number;
   scoreBonusTimer: number;
+  combo: number;
+  comboTimer: number;
+  comboMultiplier: number;
+  screenShake: ScreenShake;
+  paused: boolean;
+  settings: GameSettings;
+  sunAngle: number;
+  lastOrbitTime: number;
 }

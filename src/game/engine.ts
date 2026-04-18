@@ -1,8 +1,9 @@
-import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle } from './types';
+import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings } from './types';
 
 const ROCKET_SPEED = 4.2;
 const ORBIT_SPEED = 0.05;
 const TRAIL_LENGTH = 60;
+const COMBO_WINDOW = 120; // frames (~2 seconds at 60fps)
 
 const PLANET_PALETTES = [
   { color: '#e8a838', glow: 'rgba(232,168,56,0.45)', accent: '#b87a1c' },    // Gold
@@ -37,6 +38,18 @@ const STAR_COLORS = [
 
 function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
+}
+
+function loadSettings(): GameSettings {
+  try {
+    const s = localStorage.getItem('orbitSettings');
+    if (s) return JSON.parse(s);
+  } catch { /* ignore */ }
+  return { musicVolume: 0.5, sfxVolume: 0.7, lowGraphics: false };
+}
+
+export function saveSettings(settings: GameSettings) {
+  localStorage.setItem('orbitSettings', JSON.stringify(settings));
 }
 
 function generatePlanet(minX: number, difficulty = 0): Planet {
@@ -165,6 +178,19 @@ function generateNebulae(): Nebula[] {
   return nebs;
 }
 
+function generateSolarFlare(minX: number, canvasH: number): SolarFlare {
+  const h = rand(40, 100);
+  return {
+    x: minX + rand(600, 1200),
+    y: rand(60, canvasH - 60 - h),
+    width: rand(200, 500),
+    height: h,
+    speed: rand(0.3, 0.8),
+    color: Math.random() < 0.5 ? 'rgba(255,120,40,' : 'rgba(255,60,60,',
+    opacity: rand(0.12, 0.25),
+  };
+}
+
 export function createInitialState(): GameState {
   const planets: Planet[] = [];
   // Hand-tuned starting planet
@@ -218,6 +244,7 @@ export function createInitialState(): GameState {
     stars: generateStars(),
     nebulae: generateNebulae(),
     particles: [],
+    solarFlares: [],
     camera: { x: 0, y: 0 },
     score: 0,
     highScore: parseInt(localStorage.getItem('orbitHighScore') || '0'),
@@ -230,7 +257,20 @@ export function createInitialState(): GameState {
     phase: 'menu',
     scoreBonus: 0,
     scoreBonusTimer: 0,
+    combo: 0,
+    comboTimer: 0,
+    comboMultiplier: 1,
+    screenShake: { intensity: 0, duration: 0 },
+    paused: false,
+    settings: loadSettings(),
+    sunAngle: -Math.PI / 4,
+    lastOrbitTime: 0,
   };
+}
+
+export function togglePause(state: GameState): void {
+  if (state.phase !== 'playing') return;
+  state.paused = !state.paused;
 }
 
 export function releaseRocket(state: GameState): void {
@@ -261,8 +301,8 @@ export function releaseRocket(state: GameState): void {
   }
 }
 
-function tryAutoOrbit(state: GameState): void {
-  if (state.isOrbiting) return;
+function tryAutoOrbit(state: GameState, frameCount: number): boolean {
+  if (state.isOrbiting) return false;
   const r = state.rocket;
   for (let i = 0; i < state.planets.length; i++) {
     if (i === state.lastReleasedPlanet) continue;
@@ -280,8 +320,27 @@ function tryAutoOrbit(state: GameState): void {
       r.x = p.x + Math.cos(state.orbitAngle) * p.orbitRadius;
       r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
 
+      // Screen shake on capture
+      state.screenShake = { intensity: 3, duration: 8 };
+
+      // Combo system
+      if (state.comboTimer > 0) {
+        state.combo += 1;
+        state.comboMultiplier = Math.min(5, 1 + state.combo * 0.5);
+        const comboBonus = Math.floor(10 * state.comboMultiplier);
+        state.score += comboBonus;
+        state.scoreBonus = comboBonus;
+        state.scoreBonusTimer = 60;
+      } else {
+        state.combo = 1;
+        state.comboMultiplier = 1;
+      }
+      state.comboTimer = COMBO_WINDOW;
+      state.lastOrbitTime = frameCount;
+
       // Capture sparkle
-      for (let k = 0; k < 16; k++) {
+      const particleCount = state.settings.lowGraphics ? 8 : 16;
+      for (let k = 0; k < particleCount; k++) {
         const a = Math.random() * Math.PI * 2;
         const sp = rand(0.3, 1.8);
         state.particles.push({
@@ -303,7 +362,8 @@ function tryAutoOrbit(state: GameState): void {
         state.scoreBonus = bonus;
         state.scoreBonusTimer = 90;
         // Extra green/blue sparkle burst
-        for (let k = 0; k < 24; k++) {
+        const earthParticles = state.settings.lowGraphics ? 12 : 24;
+        for (let k = 0; k < earthParticles; k++) {
           const a = Math.random() * Math.PI * 2;
           const sp = rand(1, 3);
           state.particles.push({
@@ -318,7 +378,7 @@ function tryAutoOrbit(state: GameState): void {
           });
         }
       }
-      return;
+      return true; // captured
     }
   }
 
@@ -329,6 +389,29 @@ function tryAutoOrbit(state: GameState): void {
       state.lastReleasedPlanet = -1;
     }
   }
+  return false;
+}
+
+function spawnDeathExplosion(state: GameState) {
+  const r = state.rocket;
+  const colors = ['#e0f2fe', '#38bdf8', '#fbbf24', '#fb923c', '#ef4444', '#ffffff'];
+  const count = state.settings.lowGraphics ? 25 : 50;
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = rand(1, 5);
+    state.particles.push({
+      x: r.x,
+      y: r.y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp,
+      life: 60,
+      maxLife: 60,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: rand(1.5, 4.5),
+    });
+  }
+  // Screen shake on death (120 frames = 2 seconds)
+  state.screenShake = { intensity: 10, duration: 120 };
 }
 
 function updateParticles(state: GameState) {
@@ -342,7 +425,20 @@ function updateParticles(state: GameState) {
   });
 }
 
-export function update(state: GameState, canvasW: number, canvasH: number): boolean {
+// Called during game over to keep particles and screen shake animating
+export function updateVisualsOnly(state: GameState) {
+  updateParticles(state);
+  if (state.screenShake.duration > 0) {
+    state.screenShake.duration -= 1;
+    if (state.screenShake.duration <= 0) {
+      state.screenShake.intensity = 0;
+    }
+  }
+}
+
+export function update(state: GameState, canvasW: number, canvasH: number, frameCount: number): boolean {
+  if (state.paused) return true;
+
   const r = state.rocket;
 
   // Difficulty ramps slowly with distance
@@ -353,6 +449,23 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
     state.scoreBonusTimer -= 1;
   }
 
+  // Combo timer countdown
+  if (state.comboTimer > 0) {
+    state.comboTimer -= 1;
+    if (state.comboTimer <= 0) {
+      state.combo = 0;
+      state.comboMultiplier = 1;
+    }
+  }
+
+  // Screen shake decay
+  if (state.screenShake.duration > 0) {
+    state.screenShake.duration -= 1;
+    if (state.screenShake.duration <= 0) {
+      state.screenShake.intensity = 0;
+    }
+  }
+
   if (state.isOrbiting && state.orbitPlanetIndex >= 0) {
     const p = state.planets[state.orbitPlanetIndex];
     state.orbitAngle += ORBIT_SPEED * state.orbitDirection;
@@ -360,13 +473,40 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
     r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
     r.angle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
   } else {
+    // Check solar flare slowdown
+    let inFlare = false;
+    for (const f of state.solarFlares) {
+      if (r.x >= f.x && r.x <= f.x + f.width && r.y >= f.y && r.y <= f.y + f.height) {
+        inFlare = true;
+        break;
+      }
+    }
+    if (inFlare) {
+      r.vx *= 0.97; // Gradual slowdown
+      r.vy *= 0.97;
+      // Warning particles
+      if (Math.random() < 0.3) {
+        state.particles.push({
+          x: r.x + rand(-15, 15),
+          y: r.y + rand(-15, 15),
+          vx: rand(-0.5, 0.5),
+          vy: rand(-0.5, 0.5),
+          life: 15,
+          maxLife: 15,
+          color: '#ff6b35',
+          size: rand(1, 2.5),
+        });
+      }
+    }
+
     r.x += r.vx;
     r.y += r.vy;
     r.angle = Math.atan2(r.vy, r.vx);
-    tryAutoOrbit(state);
+    tryAutoOrbit(state, frameCount);
 
     // Thrust trail particles
-    if (Math.random() < 0.6) {
+    const thrustChance = state.settings.lowGraphics ? 0.3 : 0.6;
+    if (Math.random() < thrustChance) {
       state.particles.push({
         x: r.x - Math.cos(r.angle) * 10,
         y: r.y - Math.sin(r.angle) * 10,
@@ -408,6 +548,16 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
     state.asteroids.push(generateAsteroid(lastAsteroid.x + gap));
   }
 
+  // Generate solar flares at intervals
+  if (state.solarFlares.length === 0 || r.x > state.solarFlares[state.solarFlares.length - 1].x - canvasW) {
+    const lastFlareX = state.solarFlares.length > 0
+      ? state.solarFlares[state.solarFlares.length - 1].x + state.solarFlares[state.solarFlares.length - 1].width
+      : r.x + canvasW;
+    state.solarFlares.push(generateSolarFlare(lastFlareX, canvasH));
+  }
+  // Remove old solar flares behind camera
+  state.solarFlares = state.solarFlares.filter(f => f.x + f.width > state.camera.x - 200);
+
   // Extend stars/nebulae as we travel
   if (state.stars.length > 0) {
     const maxStarX = state.stars.reduce((m, s) => Math.max(m, s.x), 0);
@@ -439,11 +589,20 @@ export function update(state: GameState, canvasW: number, canvasH: number): bool
 
   for (const a of state.asteroids) {
     const d = Math.hypot(a.x - r.x, a.y - r.y);
-    if (d < a.radius + 6) return false;
+    if (d < a.radius + 6) {
+      spawnDeathExplosion(state);
+      return false;
+    }
   }
 
-  if (r.y < -40 || r.y > canvasH + 40) return false;
-  if (r.x < state.camera.x - 60) return false;
+  if (r.y < -40 || r.y > canvasH + 40) {
+    spawnDeathExplosion(state);
+    return false;
+  }
+  if (r.x < state.camera.x - 60) {
+    spawnDeathExplosion(state);
+    return false;
+  }
 
   return true;
 }

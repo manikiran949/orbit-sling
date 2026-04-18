@@ -311,6 +311,18 @@ export function render(
   h: number,
   time: number
 ) {
+  // Screen shake
+  ctx.save();
+  if (state.screenShake.duration > 0) {
+    // Fade out shake over the last 30 frames
+    const fade = Math.min(1, state.screenShake.duration / 30);
+    const si = state.screenShake.intensity * fade;
+    ctx.translate(
+      (Math.random() - 0.5) * si * 2,
+      (Math.random() - 0.5) * si * 2
+    );
+  }
+
   const cx = state.camera.x;
 
   // Deep space background — rich multi-stop gradient
@@ -419,6 +431,31 @@ export function render(
     ctx.arc(-a.radius * 0.3, -a.radius * 0.3, a.radius * 0.25, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+
+  // Solar flares
+  for (const f of state.solarFlares) {
+    const fx = f.x;
+    if (fx + f.width < cx || fx > cx + w) continue;
+    const pulse = 0.7 + 0.3 * Math.sin(time * 0.003 + f.x * 0.01);
+    const flareGrad = ctx.createLinearGradient(0, f.y, 0, f.y + f.height);
+    flareGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    flareGrad.addColorStop(0.3, `${f.color}${f.opacity * pulse})`);
+    flareGrad.addColorStop(0.5, `${f.color}${f.opacity * pulse * 1.2})`);
+    flareGrad.addColorStop(0.7, `${f.color}${f.opacity * pulse})`);
+    flareGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = flareGrad;
+    ctx.fillRect(f.x, f.y, f.width, f.height);
+    ctx.strokeStyle = `${f.color}${f.opacity * 0.5})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(f.x, f.y);
+    ctx.lineTo(f.x + f.width, f.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(f.x, f.y + f.height);
+    ctx.lineTo(f.x + f.width, f.y + f.height);
+    ctx.stroke();
   }
 
   // Particles
@@ -678,6 +715,27 @@ export function render(
   ctx.fillText(`${state.highScore}`, w - 26, 58);
   ctx.restore();
 
+  // Combo HUD
+  if (state.combo > 1) {
+    ctx.save();
+    const comboAlpha = Math.min(1, state.comboTimer / 30);
+    ctx.globalAlpha = comboAlpha;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(251,191,36,0.5)';
+    ctx.shadowBlur = 10;
+    ctx.font = '800 22px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText(`x${state.combo} COMBO`, w / 2, 40);
+    // Timer bar
+    const barW = 80;
+    const barProg = state.comboTimer / 120;
+    ctx.fillStyle = 'rgba(251,191,36,0.15)';
+    ctx.fillRect(w / 2 - barW / 2, 48, barW, 4);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(w / 2 - barW / 2, 48, barW * barProg, 4);
+    ctx.restore();
+  }
+
   // Score bonus popup
   if (state.scoreBonusTimer > 0) {
     const bonusAlpha = Math.min(1, state.scoreBonusTimer / 30);
@@ -695,6 +753,9 @@ export function render(
     ctx.fillText('EARTH BONUS!', w / 2, bonusY + 20);
     ctx.restore();
   }
+
+  // End screen shake save
+  ctx.restore();
 }
 
 export function renderMenu(
@@ -942,4 +1003,103 @@ export function renderGameOver(
   ctx.font = '600 16px "Inter", system-ui, sans-serif';
   ctx.fillText('TAP TO RETRY', w / 2, cardY + cardH + 40);
   ctx.restore();
+}
+
+export function renderPause(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  state: GameState
+) {
+  // Dark overlay
+  ctx.fillStyle = 'rgba(4, 6, 15, 0.75)';
+  ctx.fillRect(0, 0, w, h);
+
+  // Card
+  const cardW = Math.min(320, w * 0.85);
+  const cardH = 280;
+  const cardX = (w - cardW) / 2;
+  const cardY = (h - cardH) / 2 - 20;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 16);
+  ctx.fillStyle = 'rgba(10, 14, 36, 0.7)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+
+  // Title
+  ctx.save();
+  ctx.shadowColor = 'rgba(56,189,248,0.3)';
+  ctx.shadowBlur = 15;
+  ctx.fillStyle = '#e0f2fe';
+  ctx.font = '700 28px "Inter", system-ui, sans-serif';
+  ctx.fillText('PAUSED', w / 2, cardY + 45);
+  ctx.restore();
+
+  // Divider
+  const divGrad = ctx.createLinearGradient(w / 2 - 40, 0, w / 2 + 40, 0);
+  divGrad.addColorStop(0, 'rgba(56,189,248,0)');
+  divGrad.addColorStop(0.5, 'rgba(56,189,248,0.3)');
+  divGrad.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = divGrad;
+  ctx.fillRect(w / 2 - 40, cardY + 55, 80, 1);
+
+  // Settings labels and sliders
+  const sliderX = cardX + 30;
+  const sliderW = cardW - 60;
+  const settings = state.settings;
+
+  // Music volume
+  ctx.textAlign = 'left';
+  ctx.font = '500 13px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+  ctx.fillText('Music Volume', sliderX, cardY + 90);
+  // Slider track
+  ctx.fillStyle = 'rgba(56,189,248,0.12)';
+  ctx.fillRect(sliderX, cardY + 98, sliderW, 6);
+  // Slider fill
+  ctx.fillStyle = 'rgba(56,189,248,0.5)';
+  ctx.fillRect(sliderX, cardY + 98, sliderW * settings.musicVolume, 6);
+  // Slider handle
+  ctx.beginPath();
+  ctx.arc(sliderX + sliderW * settings.musicVolume, cardY + 101, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fill();
+
+  // SFX volume
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+  ctx.fillText('SFX Volume', sliderX, cardY + 135);
+  ctx.fillStyle = 'rgba(56,189,248,0.12)';
+  ctx.fillRect(sliderX, cardY + 143, sliderW, 6);
+  ctx.fillStyle = 'rgba(56,189,248,0.5)';
+  ctx.fillRect(sliderX, cardY + 143, sliderW * settings.sfxVolume, 6);
+  ctx.beginPath();
+  ctx.arc(sliderX + sliderW * settings.sfxVolume, cardY + 146, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fill();
+
+  // Low Graphics toggle
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+  ctx.fillText('Low Graphics', sliderX, cardY + 185);
+  // Toggle box
+  const toggleX = sliderX + sliderW - 40;
+  const toggleY = cardY + 174;
+  ctx.beginPath();
+  ctx.roundRect(toggleX, toggleY, 40, 20, 10);
+  ctx.fillStyle = settings.lowGraphics ? 'rgba(52,211,153,0.6)' : 'rgba(56,189,248,0.15)';
+  ctx.fill();
+  // Toggle knob
+  ctx.beginPath();
+  ctx.arc(settings.lowGraphics ? toggleX + 28 : toggleX + 12, toggleY + 10, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // Resume hint
+  ctx.textAlign = 'center';
+  ctx.font = '400 12px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
+  ctx.fillText('Press ESC or tap to resume', w / 2, cardY + cardH - 20);
 }
