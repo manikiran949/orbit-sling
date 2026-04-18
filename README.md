@@ -4,10 +4,10 @@ A fast-paced, physics-based arcade game built with React and HTML5 Canvas. Navig
 
 ## How to Play
 
-- **Auto-Orbit:** Your rocket automatically enters the orbit of nearby planets and comets.
+- **Auto-Orbit:** Your rocket automatically enters the orbit of nearby planets.
 - **Slingshot:** Click or tap anywhere to release from orbit and slingshot forward.
 - **Score:** Travel as far as you can!
-- **Combos & Hazards:** Hitch a ride on high-speed comets, avoid solar flares, and build momentum combos to boost your score.
+- **Combos & Hazards:** Avoid solar flares and build momentum combos to boost your score.
 
 ## Features
 
