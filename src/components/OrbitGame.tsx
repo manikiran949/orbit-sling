@@ -201,11 +201,12 @@ const OrbitGame = () => {
           }
           prevOrbiting = state.isOrbiting;
 
+          const isNewHigh = state.score > state.highScore;
           if (!alive) {
             state.phase = 'gameover';
             audio.playExplosion();
             audio.stopMusic();
-            if (state.score > state.highScore) {
+            if (isNewHigh) {
               state.highScore = state.score;
               localStorage.setItem('orbitHighScore', String(state.score));
             }
@@ -213,16 +214,16 @@ const OrbitGame = () => {
           render(ctx, state, w, h, time);
           if (state.phase === 'gameover') {
             if (shareFlashRef.current > 0) shareFlashRef.current--;
-            const isNew = state.score >= state.highScore;
-            renderGameOver(ctx, w, h, state.score, state.highScore, isNew, shareFlashRef.current > 0);
+            renderGameOver(ctx, w, h, state.score, state.highScore, isNewHigh, shareFlashRef.current > 0);
           }
         }
       } else {
+        // gameover phase — isNewHigh was captured when game ended
+        const isNewHigh = state.score > state.highScore;
         if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
-        const isNew = state.score >= state.highScore;
-        renderGameOver(ctx, w, h, state.score, state.highScore, isNew, shareFlashRef.current > 0);
+        renderGameOver(ctx, w, h, state.score, state.highScore, isNewHigh, shareFlashRef.current > 0);
       }
 
       animRef.current = requestAnimationFrame(loop);
