@@ -41,6 +41,17 @@ function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
 
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function lerpAngle(a: number, b: number, t: number): number {
+  let diff = b - a;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return a + diff * t;
+}
+
 function loadSettings(): GameSettings {
   try {
     const s = localStorage.getItem('orbitSettings');
@@ -133,16 +144,40 @@ function generatePlanet(minX: number, difficulty = 0): Planet {
   };
 }
 
-function generateAsteroid(minX: number): Asteroid {
+function generateAsteroid(minX: number, planets: Planet[]): Asteroid {
   const radius = rand(8, 16);
   const verts: number[] = [];
   const n = Math.floor(rand(6, 9));
   for (let i = 0; i < n; i++) {
     verts.push(radius * rand(0.7, 1.3));
   }
+
+  // Try up to 10 times to find a position that doesn't overlap any orbit path
+  let x = 0, y = 0;
+  const clearance = 25; // min distance from any orbit ring
+  for (let attempt = 0; attempt < 10; attempt++) {
+    x = minX + rand(150, 350);
+    y = rand(80, 520);
+    let overlaps = false;
+    for (const p of planets) {
+      const dist = Math.hypot(x - p.x, y - p.y);
+      // Check if asteroid sits on the orbit ring (too close to orbitRadius)
+      if (Math.abs(dist - p.orbitRadius) < radius + clearance) {
+        overlaps = true;
+        break;
+      }
+      // Also avoid being inside the planet itself
+      if (dist < p.radius + radius + 10) {
+        overlaps = true;
+        break;
+      }
+    }
+    if (!overlaps) break;
+  }
+
   return {
-    x: minX + rand(150, 350),
-    y: rand(80, 520),
+    x,
+    y,
     radius,
     rotation: Math.random() * Math.PI * 2,
     vertices: verts,
@@ -227,7 +262,7 @@ export function createInitialState(): GameState {
   const asteroids: Asteroid[] = [];
   // Fewer/farther asteroids early
   for (let i = 0; i < 4; i++) {
-    asteroids.push(generateAsteroid(800 + i * 600));
+    asteroids.push(generateAsteroid(800 + i * 600, planets));
   }
 
   const firstPlanet = planets[0];
@@ -257,11 +292,14 @@ export function createInitialState(): GameState {
 
     orbitAngle: startAngle,
     orbitDirection: 1,
+    captureProgress: 1,
+    captureStartDist: 0,
     lastReleasedPlanet: -1,
     difficulty: 0,
     phase: 'menu',
     scoreBonus: 0,
     scoreBonusTimer: 0,
+    scoreBonusLabel: '',
     combo: 0,
     comboTimer: 0,
     comboMultiplier: 1,
@@ -273,6 +311,7 @@ export function createInitialState(): GameState {
     sunAngle: -Math.PI / 4,
     lastOrbitTime: 0,
     shareMessage: '',
+    showTutorial: !localStorage.getItem('orbitTutorialSeen'),
   };
 }
 
@@ -332,11 +371,13 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
       state.orbitPlanetIndex = i;
       state.isOrbiting = true;
       state.lastReleasedPlanet = -1;
-      r.x = p.x + Math.cos(state.orbitAngle) * p.orbitRadius;
-      r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
 
-      // Screen shake on capture
-      state.screenShake = { intensity: 3, duration: 8 };
+      // Smooth capture: store start distance, don't snap position
+      state.captureProgress = 0;
+      state.captureStartDist = d;
+
+      // Gentle screen shake on capture
+      state.screenShake = { intensity: 2, duration: 8 };
 
       // Combo system
       if (state.comboTimer > 0) {
@@ -346,6 +387,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         state.score += comboBonus;
         state.scoreBonus = comboBonus;
         state.scoreBonusTimer = 60;
+        state.scoreBonusLabel = 'combo';
       } else {
         state.combo = 1;
         state.comboMultiplier = 1;
@@ -378,6 +420,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         state.score += bonus;
         state.scoreBonus = bonus;
         state.scoreBonusTimer = 90;
+        state.scoreBonusLabel = 'earth';
         // Extra green/blue sparkle burst
         const earthParticles = state.settings.lowGraphics ? 12 : 24;
         for (let k = 0; k < earthParticles; k++) {
@@ -488,9 +531,23 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   if (state.isOrbiting && state.orbitPlanetIndex >= 0) {
     const p = state.planets[state.orbitPlanetIndex];
     state.orbitAngle += ORBIT_SPEED * state.orbitDirection;
-    r.x = p.x + Math.cos(state.orbitAngle) * p.orbitRadius;
-    r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
-    r.angle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
+
+    // Smooth capture transition: spiral into orbit over ~15 frames
+    if (state.captureProgress < 1) {
+      state.captureProgress = Math.min(1, state.captureProgress + 0.065);
+      const ease = easeOutCubic(state.captureProgress);
+      const currentRadius = state.captureStartDist + (p.orbitRadius - state.captureStartDist) * ease;
+      r.x = p.x + Math.cos(state.orbitAngle) * currentRadius;
+      r.y = p.y + Math.sin(state.orbitAngle) * currentRadius;
+
+      // Smoothly transition rocket angle to tangent direction
+      const targetAngle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
+      r.angle = lerpAngle(r.angle, targetAngle, 0.2 + ease * 0.3);
+    } else {
+      r.x = p.x + Math.cos(state.orbitAngle) * p.orbitRadius;
+      r.y = p.y + Math.sin(state.orbitAngle) * p.orbitRadius;
+      r.angle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
+    }
 
   } else {
     // Check solar flare slowdown
@@ -567,7 +624,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   const lastAsteroid = state.asteroids[state.asteroids.length - 1];
   if (lastAsteroid && r.x > lastAsteroid.x - canvasW * 1.5) {
     const gap = rand(400 - state.difficulty * 40, 700 - state.difficulty * 60);
-    state.asteroids.push(generateAsteroid(lastAsteroid.x + gap));
+    state.asteroids.push(generateAsteroid(lastAsteroid.x + gap, state.planets));
   }
 
   // Generate solar flares at intervals
@@ -620,7 +677,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     }
   }
 
-  if (r.y < -40 || r.y > canvasH + 40) {
+  if (!state.isOrbiting && (r.y < -40 || r.y > canvasH + 40)) {
     spawnDeathExplosion(state);
     buildShareMessage(state);
     return false;

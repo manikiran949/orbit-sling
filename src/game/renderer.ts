@@ -744,15 +744,28 @@ export function render(
     const bonusY = h * 0.35 - (90 - state.scoreBonusTimer) * 0.5;
     ctx.save();
     ctx.globalAlpha = bonusAlpha;
-    ctx.shadowColor = 'rgba(52,211,153,0.6)';
-    ctx.shadowBlur = 15;
     ctx.textAlign = 'center';
-    ctx.font = '800 28px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#34d399';
-    ctx.fillText(`+${state.scoreBonus}`, w / 2, bonusY);
-    ctx.font = '500 12px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#6ee7b7';
-    ctx.fillText('EARTH BONUS!', w / 2, bonusY + 20);
+
+    if (state.scoreBonusLabel === 'earth') {
+      ctx.shadowColor = 'rgba(52,211,153,0.6)';
+      ctx.shadowBlur = 15;
+      ctx.font = '800 28px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#34d399';
+      ctx.fillText(`+${state.scoreBonus}`, w / 2, bonusY);
+      ctx.font = '500 12px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#6ee7b7';
+      ctx.fillText('EARTH BONUS!', w / 2, bonusY + 20);
+    } else {
+      ctx.shadowColor = 'rgba(251,191,36,0.5)';
+      ctx.shadowBlur = 12;
+      ctx.font = '800 24px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText(`+${state.scoreBonus}`, w / 2, bonusY);
+      ctx.font = '500 11px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText('COMBO BONUS!', w / 2, bonusY + 18);
+    }
+
     ctx.restore();
   }
 
@@ -905,9 +918,94 @@ export function renderMenu(
   // Subtitle
   ctx.font = '400 13px "Inter", system-ui, sans-serif';
   ctx.fillStyle = 'rgba(186, 230, 253, 0.55)';
-  ctx.fillText('Tap to release  ·  Auto-orbit the next planet', w / 2, py + 140);
+  ctx.fillText('Tap to release  ·  Auto-orbit the next planet', w / 2, py + 128);
+
+  // Hazard legend panel
+  const legendW = Math.min(260, w * 0.7);
+  const legendH = 88;
+  const legendX = (w - legendW) / 2;
+  const legendY = py + 140;
+  ctx.beginPath();
+  ctx.roundRect(legendX, legendY, legendW, legendH, 10);
+  ctx.fillStyle = 'rgba(10, 14, 36, 0.45)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const iconX = legendX + 22;
+  const labelX = legendX + 44;
+  const descX = labelX;
+  const rowH = 26;
+  const startY = legendY + 20;
+
+  // Row 1: Solar Flare
+  // Mini flare icon (orange gradient bar)
+  const flareGrad = ctx.createLinearGradient(iconX - 8, 0, iconX + 8, 0);
+  flareGrad.addColorStop(0, 'rgba(255,120,40,0)');
+  flareGrad.addColorStop(0.5, 'rgba(255,120,40,0.7)');
+  flareGrad.addColorStop(1, 'rgba(255,120,40,0)');
+  ctx.fillStyle = flareGrad;
+  ctx.fillRect(iconX - 8, startY - 5, 16, 10);
+  ctx.textAlign = 'left';
+  ctx.font = '600 11px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = '#fb923c';
+  ctx.fillText('SOLAR FLARES', descX, startY + 1);
+  ctx.font = '400 10px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
+  ctx.fillText('Slow your rocket by half', descX + 97, startY + 1);
+
+  // Row 2: Asteroid
+  // Mini asteroid icon
+  ctx.save();
+  ctx.translate(iconX, startY + rowH);
+  ctx.beginPath();
+  const astR = 5;
+  for (let i = 0; i <= 6; i++) {
+    const ang = (i / 6) * Math.PI * 2;
+    const ar = astR * (0.7 + Math.sin(i * 2.3) * 0.3);
+    if (i === 0) ctx.moveTo(Math.cos(ang) * ar, Math.sin(ang) * ar);
+    else ctx.lineTo(Math.cos(ang) * ar, Math.sin(ang) * ar);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#8a4a4a';
+  ctx.fill();
+  ctx.strokeStyle = '#a85d5d';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.restore();
+  ctx.font = '600 11px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = '#f87171';
+  ctx.fillText('ASTEROIDS', descX, startY + rowH + 4);
+  ctx.font = '400 10px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
+  ctx.fillText('Instant death on contact', descX + 74, startY + rowH + 4);
+
+  // Row 3: Earth
+  // Mini earth icon
+  ctx.beginPath();
+  ctx.arc(iconX, startY + rowH * 2 + 3, 5, 0, Math.PI * 2);
+  const earthGrad = ctx.createRadialGradient(iconX - 1, startY + rowH * 2 + 2, 0, iconX, startY + rowH * 2 + 3, 5);
+  earthGrad.addColorStop(0, '#5b9df5');
+  earthGrad.addColorStop(1, '#1d4ed8');
+  ctx.fillStyle = earthGrad;
+  ctx.fill();
+  // Tiny continent
+  ctx.beginPath();
+  ctx.arc(iconX + 1, startY + rowH * 2 + 2, 2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(55,120,55,0.5)';
+  ctx.fill();
+  ctx.font = '600 11px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = '#34d399';
+  ctx.fillText('EARTH PLANETS', descX, startY + rowH * 2 + 7);
+  ctx.font = '400 10px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
+  ctx.fillText('+50 bonus points', descX + 103, startY + rowH * 2 + 7);
+
+  ctx.textAlign = 'center';
 
   // CTA — pulsing with glow
+  const ctaY = legendY + legendH + 28;
   const pulse = 0.65 + 0.35 * Math.sin(time * 0.004);
   ctx.globalAlpha = pulse;
   ctx.save();
@@ -915,14 +1013,14 @@ export function renderMenu(
   ctx.shadowBlur = 15;
   ctx.font = '600 18px "Inter", system-ui, sans-serif';
   ctx.fillStyle = '#38bdf8';
-  ctx.fillText('TAP TO START', w / 2, py + 178);
+  ctx.fillText('TAP TO START', w / 2, ctaY);
   ctx.restore();
   ctx.globalAlpha = 1;
 
   if (highScore > 0) {
     ctx.font = '500 12px "Inter", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
-    ctx.fillText(`BEST  ${highScore} m`, w / 2, py + 210);
+    ctx.fillText(`BEST  ${highScore} m`, w / 2, ctaY + 30);
   }
 }
 

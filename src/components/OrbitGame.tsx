@@ -236,8 +236,7 @@ const OrbitGame = () => {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 touch-none cursor-pointer"
-      onMouseDown={handleTap}
-      onTouchStart={handleTap}
+      onPointerDown={handleTap}
     />
   );
 };

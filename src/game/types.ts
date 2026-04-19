@@ -106,11 +106,14 @@ export interface GameState {
 
   orbitAngle: number;
   orbitDirection: number;
+  captureProgress: number;
+  captureStartDist: number;
   lastReleasedPlanet: number;
   difficulty: number;
   phase: 'menu' | 'playing' | 'gameover';
   scoreBonus: number;
   scoreBonusTimer: number;
+  scoreBonusLabel: 'combo' | 'earth' | '';
   combo: number;
   comboTimer: number;
   comboMultiplier: number;
@@ -122,4 +125,5 @@ export interface GameState {
   sunAngle: number;
   lastOrbitTime: number;
   shareMessage: string;
+  showTutorial: boolean;
 }
