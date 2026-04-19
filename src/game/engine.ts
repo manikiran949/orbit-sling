@@ -64,7 +64,7 @@ export function saveSettings(settings: GameSettings) {
   localStorage.setItem('orbitSettings', JSON.stringify(settings));
 }
 
-function generatePlanet(minX: number, difficulty = 0): Planet {
+function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
   // Difficulty: smaller planets, farther apart over time
   const radiusMin = Math.max(16, 26 - difficulty * 2);
   const radiusMax = Math.max(24, 44 - difficulty * 3);
@@ -130,7 +130,7 @@ function generatePlanet(minX: number, difficulty = 0): Planet {
 
   return {
     x: minX + rand(spacingMin, spacingMax),
-    y: rand(140, 460),
+    y: rand(140, Math.max(460, canvasH - 140)),
     radius,
     orbitRadius: radius + rand(40, 60),
     color,
@@ -144,7 +144,7 @@ function generatePlanet(minX: number, difficulty = 0): Planet {
   };
 }
 
-function generateAsteroid(minX: number, planets: Planet[]): Asteroid {
+function generateAsteroid(minX: number, planets: Planet[], canvasH = 600): Asteroid {
   const radius = rand(8, 16);
   const verts: number[] = [];
   const n = Math.floor(rand(6, 9));
@@ -157,7 +157,7 @@ function generateAsteroid(minX: number, planets: Planet[]): Asteroid {
   const clearance = 25; // min distance from any orbit ring
   for (let attempt = 0; attempt < 10; attempt++) {
     x = minX + rand(150, 350);
-    y = rand(80, 520);
+    y = rand(80, Math.max(520, canvasH - 80));
     let overlaps = false;
     for (const p of planets) {
       const dist = Math.hypot(x - p.x, y - p.y);
@@ -229,12 +229,12 @@ function generateSolarFlare(minX: number, canvasH: number): SolarFlare {
 
 
 
-export function createInitialState(): GameState {
+export function createInitialState(canvasH = 600): GameState {
   const planets: Planet[] = [];
   // Hand-tuned starting planet
   planets.push({
     x: 200,
-    y: 320,
+    y: Math.max(320, canvasH / 2),
     radius: 36,
     orbitRadius: 80,
     color: '#e8a838',
@@ -254,7 +254,7 @@ export function createInitialState(): GameState {
   // More starting planets, easier spacing
   let lastX = 200;
   for (let i = 0; i < 14; i++) {
-    const p = generatePlanet(lastX, 0);
+    const p = generatePlanet(lastX, 0, canvasH);
     planets.push(p);
     lastX = p.x;
   }
@@ -262,7 +262,7 @@ export function createInitialState(): GameState {
   const asteroids: Asteroid[] = [];
   // Fewer/farther asteroids early
   for (let i = 0; i < 4; i++) {
-    asteroids.push(generateAsteroid(800 + i * 600, planets));
+    asteroids.push(generateAsteroid(800 + i * 600, planets, canvasH));
   }
 
   const firstPlanet = planets[0];
@@ -366,7 +366,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
     const d = Math.hypot(dx, dy);
     if (d <= p.orbitRadius + 8 && d >= p.radius) {
       const cross = r.vx * dy - r.vy * dx;
-      state.orbitDirection = cross > 0 ? 1 : -1;
+      state.orbitDirection = cross > 0 ? -1 : 1;
       state.orbitAngle = Math.atan2(dy, dx);
       state.orbitPlanetIndex = i;
       state.isOrbiting = true;
@@ -619,12 +619,12 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
 
   const lastPlanet = state.planets[state.planets.length - 1];
   if (r.x > lastPlanet.x - canvasW * 1.5) {
-    state.planets.push(generatePlanet(lastPlanet.x, state.difficulty));
+    state.planets.push(generatePlanet(lastPlanet.x, state.difficulty, canvasH));
   }
   const lastAsteroid = state.asteroids[state.asteroids.length - 1];
   if (lastAsteroid && r.x > lastAsteroid.x - canvasW * 1.5) {
     const gap = rand(400 - state.difficulty * 40, 700 - state.difficulty * 60);
-    state.asteroids.push(generateAsteroid(lastAsteroid.x + gap, state.planets));
+    state.asteroids.push(generateAsteroid(lastAsteroid.x + gap, state.planets, canvasH));
   }
 
   // Generate solar flares at intervals

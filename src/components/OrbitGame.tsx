@@ -6,7 +6,7 @@ import { audio } from '@/game/audio';
 
 const OrbitGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<GameState>(createInitialState());
+  const stateRef = useRef<GameState>(createInitialState(typeof window !== 'undefined' ? window.innerHeight : 600));
   const animRef = useRef<number>(0);
   const frameRef = useRef<number>(0);
   const audioInitRef = useRef(false);
@@ -78,7 +78,7 @@ const OrbitGame = () => {
       }
       const hs = state.highScore;
       const settings = state.settings;
-      stateRef.current = createInitialState();
+      stateRef.current = createInitialState(window.innerHeight);
       stateRef.current.highScore = hs;
       stateRef.current.settings = settings;
       stateRef.current.phase = 'playing';
