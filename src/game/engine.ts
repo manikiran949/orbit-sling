@@ -612,7 +612,15 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
 
   updateParticles(state);
 
-  state.camera.x = r.x - canvasW * 0.3;
+  if (state.isOrbiting) {
+    // Keep rocket centered while orbiting (allows camera to pan left on large planets)
+    state.camera.x = r.x - canvasW * 0.3;
+  } else {
+    // Camera only follows forwards to prevent getting "lost in space" when flying
+    // state.score tracks the max X progress (divided by 10)
+    const maxRocketX = Math.max(r.x, state.score * 10);
+    state.camera.x = Math.max(state.camera.x, r.x - canvasW * 0.3);
+  }
   state.camera.y = 0;
 
   state.score = Math.max(state.score, Math.floor(r.x / 10));
@@ -697,13 +705,13 @@ export function buildShareMessage(state: GameState): void {
     '━━━━━━━━━━━━━━━━━━━━',
     `🏆 Score: ${state.score.toLocaleString()}m`
   ];
-  
+
   if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
   if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
-  
+
   lines.push('');
   lines.push('I survived the glass plains! Can you beat my score?');
-  lines.push('🔗 https://orbit-slingshot.vercel.app');
-  
+  lines.push('🔗 https://manikiran949.itch.io/orbit-sling');
+
   state.shareMessage = lines.join('\n');
 }
