@@ -1,8 +1,8 @@
 import { GameState, Planet } from './types';
 
 export const GAME_OVER_LAYOUT = {
-  cardWidthMax: 280,
-  cardHeight: 352,
+  cardWidthMax: 300,
+  cardHeight: 415,
   cardYOffset: -10,
   shareButtonWidth: 160,
   shareButtonHeight: 36,
@@ -959,35 +959,35 @@ export function renderMenu(
   }
   ctx.globalAlpha = 1;
 
-  // Demo planet — larger and more prominent
+  // Demo planet — large, prominent, majestic
   const px = w / 2;
-  const py = h / 2 + 15;
+  const py = h / 2 + 10;
   const planet: Planet = {
     x: px,
     y: py,
-    radius: 52,
-    orbitRadius: 105,
+    radius: 65,
+    orbitRadius: 135,
     color: '#e8a838',
-    glowColor: 'rgba(232,168,56,0.5)',
+    glowColor: 'rgba(232,168,56,0.6)',
     accentColor: '#b87a1c',
     hasRing: true,
-    ringTilt: -0.25,
+    ringTilt: -0.22,
     craters: [
-      { x: -12, y: -10, r: 7 },
-      { x: 14, y: 12, r: 6 },
-      { x: -6, y: 18, r: 5 },
-      { x: 8, y: -14, r: 4 },
+      { x: -16, y: -14, r: 9 },
+      { x: 18, y: 16, r: 8 },
+      { x: -8, y: 22, r: 6 },
+      { x: 10, y: -20, r: 5 },
     ],
-    rotation: time * 0.0006,
+    rotation: time * 0.0004,
     planetType: 'gas',
     earthBonusClaimed: false,
   };
   drawPlanet(ctx, planet);
 
   // Orbiting rocket — glowing trail dot
-  const orbitAngle = time * 0.002;
-  const ox = px + Math.cos(orbitAngle) * 105;
-  const oy = py + Math.sin(orbitAngle) * 105;
+  const orbitAngle = time * 0.0015;
+  const ox = px + Math.cos(orbitAngle) * 135;
+  const oy = py + Math.sin(orbitAngle) * 135;
   // Trail glow
   const rg = ctx.createRadialGradient(ox, oy, 0, ox, oy, 14);
   rg.addColorStop(0, 'rgba(56,189,248,0.6)');
@@ -1004,135 +1004,65 @@ export function renderMenu(
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  // Title — with text shadow
+  // Title - massive, clean typography
   ctx.textAlign = 'center';
+  
+  // Title glow
   ctx.save();
-  // Shadow pass
-  ctx.shadowColor = 'rgba(56,189,248,0.3)';
-  ctx.shadowBlur = 30;
-  ctx.fillStyle = '#f0f9ff';
-  ctx.font = '800 48px "Inter", system-ui, sans-serif';
-  ctx.fillText('ORBIT', w / 2, py - 140);
-  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'rgba(56,189,248,0.4)';
+  ctx.shadowBlur = 40;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 64px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '4px';
+  ctx.fillText('ORBIT', w / 2, py - 150);
   ctx.restore();
-  ctx.font = '300 26px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = '#7dd3fc';
-  ctx.fillText('SLINGSHOT', w / 2, py - 104);
 
-  // Decorative line
-  const lineGrad = ctx.createLinearGradient(w / 2 - 60, 0, w / 2 + 60, 0);
+  ctx.font = '300 24px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '12px';
+  ctx.fillStyle = '#38bdf8';
+  ctx.fillText('SLINGSHOT', w / 2, py - 100);
+
+  // Divider line
+  const gw = w * 0.4;
+  const lineGrad = ctx.createLinearGradient(w / 2 - gw / 2, 0, w / 2 + gw / 2, 0);
   lineGrad.addColorStop(0, 'rgba(56,189,248,0)');
-  lineGrad.addColorStop(0.5, 'rgba(56,189,248,0.4)');
+  lineGrad.addColorStop(0.5, 'rgba(56,189,248,0.5)');
   lineGrad.addColorStop(1, 'rgba(56,189,248,0)');
   ctx.fillStyle = lineGrad;
-  ctx.fillRect(w / 2 - 60, py - 88, 120, 1);
+  ctx.fillRect(w / 2 - gw / 2, py - 70, gw, 1);
 
-  // Subtitle
-  ctx.font = '400 13px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.55)';
-  ctx.fillText('Tap to release  ·  Auto-orbit the next planet', w / 2, py + 128);
+  const verticalScale = Math.max(0.85, Math.min(1.1, h / 800));
 
-  // Hazard legend panel
-  const legendW = Math.min(260, w * 0.7);
-  const legendH = 88;
-  const legendX = (w - legendW) / 2;
-  const legendY = py + 140;
-  ctx.beginPath();
-  ctx.roundRect(legendX, legendY, legendW, legendH, 10);
-  ctx.fillStyle = 'rgba(10, 14, 36, 0.45)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  // Pulse effect for main Start prompt
+  const pulse = 0.5 + 0.5 * Math.sin(time * 0.003);
+  const startY = py + 160 * verticalScale;
 
-  const iconX = legendX + 22;
-  const labelX = legendX + 44;
-  const descX = labelX;
-  const rowH = 26;
-  const startY = legendY + 20;
-
-  // Row 1: Solar Flare
-  // Mini flare icon (orange gradient bar)
-  const flareGrad = ctx.createLinearGradient(iconX - 8, 0, iconX + 8, 0);
-  flareGrad.addColorStop(0, 'rgba(255,120,40,0)');
-  flareGrad.addColorStop(0.5, 'rgba(255,120,40,0.7)');
-  flareGrad.addColorStop(1, 'rgba(255,120,40,0)');
-  ctx.fillStyle = flareGrad;
-  ctx.fillRect(iconX - 8, startY - 5, 16, 10);
-  ctx.textAlign = 'left';
-  ctx.font = '600 11px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = '#fb923c';
-  ctx.fillText('SOLAR FLARES', descX, startY + 1);
-  ctx.font = '400 10px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
-  ctx.fillText('Slow your rocket by half', descX + 97, startY + 1);
-
-  // Row 2: Asteroid
-  // Mini asteroid icon
   ctx.save();
-  ctx.translate(iconX, startY + rowH);
-  ctx.beginPath();
-  const astR = 5;
-  for (let i = 0; i <= 6; i++) {
-    const ang = (i / 6) * Math.PI * 2;
-    const ar = astR * (0.7 + Math.sin(i * 2.3) * 0.3);
-    if (i === 0) ctx.moveTo(Math.cos(ang) * ar, Math.sin(ang) * ar);
-    else ctx.lineTo(Math.cos(ang) * ar, Math.sin(ang) * ar);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#8a4a4a';
-  ctx.fill();
-  ctx.strokeStyle = '#a85d5d';
-  ctx.lineWidth = 0.8;
-  ctx.stroke();
+  ctx.globalAlpha = 0.6 + 0.4 * pulse;
+  ctx.shadowColor = 'rgba(56,189,248,0.6)';
+  ctx.shadowBlur = 20 + 10 * pulse;
+  ctx.font = `800 ${Math.round(28 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.letterSpacing = '3px';
+  ctx.fillStyle = '#f0f9ff';
+  ctx.fillText('TAP TO START', w / 2, startY);
   ctx.restore();
-  ctx.font = '600 11px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = '#f87171';
-  ctx.fillText('ASTEROIDS', descX, startY + rowH + 4);
-  ctx.font = '400 10px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
-  ctx.fillText('Instant death on contact', descX + 74, startY + rowH + 4);
 
-  // Row 3: Earth
-  // Mini earth icon
-  ctx.beginPath();
-  ctx.arc(iconX, startY + rowH * 2 + 3, 5, 0, Math.PI * 2);
-  const earthGrad = ctx.createRadialGradient(iconX - 1, startY + rowH * 2 + 2, 0, iconX, startY + rowH * 2 + 3, 5);
-  earthGrad.addColorStop(0, '#5b9df5');
-  earthGrad.addColorStop(1, '#1d4ed8');
-  ctx.fillStyle = earthGrad;
-  ctx.fill();
-  // Tiny continent
-  ctx.beginPath();
-  ctx.arc(iconX + 1, startY + rowH * 2 + 2, 2, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(55,120,55,0.5)';
-  ctx.fill();
-  ctx.font = '600 11px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = '#34d399';
-  ctx.fillText('EARTH PLANETS', descX, startY + rowH * 2 + 7);
-  ctx.font = '400 10px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
-  ctx.fillText('+50 bonus points', descX + 103, startY + rowH * 2 + 7);
+  // Unified minimal instructions
+  ctx.font = `400 ${Math.round(14 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+  ctx.letterSpacing = '1px';
+  ctx.fillText('Tap / Space to launch  •  Esc to pause', w / 2, startY + 50 * verticalScale);
 
-  ctx.textAlign = 'center';
-
-  // CTA — pulsing with glow
-  const ctaY = legendY + legendH + 28;
-  const pulse = 0.65 + 0.35 * Math.sin(time * 0.004);
-  ctx.globalAlpha = pulse;
-  ctx.save();
-  ctx.shadowColor = 'rgba(56,189,248,0.5)';
-  ctx.shadowBlur = 15;
-  ctx.font = '600 18px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillText('TAP TO START', w / 2, ctaY);
-  ctx.restore();
-  ctx.globalAlpha = 1;
+  ctx.font = `600 ${Math.round(12 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('ONE-TAP ORBITAL ARCADE', w / 2, startY + 80 * verticalScale);
 
   if (highScore > 0) {
-    ctx.font = '500 12px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
-    ctx.fillText(`BEST  ${highScore} m`, w / 2, ctaY + 30);
+    ctx.font = `700 ${Math.round(13 * verticalScale)}px "Inter", system-ui, sans-serif`;
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText(`BEST: ${highScore}m`, w / 2, py - 220);
   }
 }
 
@@ -1161,147 +1091,184 @@ export function renderGameOver(
   ctx.fillRect(0, 0, w, h);
 
   // Card panel
-  const cardW = Math.min(GAME_OVER_LAYOUT.cardWidthMax, w * 0.8);
+  const cardW = Math.min(GAME_OVER_LAYOUT.cardWidthMax, w * 0.85);
   const cardH = GAME_OVER_LAYOUT.cardHeight;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 + GAME_OVER_LAYOUT.cardYOffset;
+  
+  // Outer subtle glow for the panel
+  ctx.save();
+  ctx.shadowColor = 'rgba(10, 14, 36, 0.9)';
+  ctx.shadowBlur = 40;
   ctx.beginPath();
-  ctx.roundRect(cardX, cardY, cardW, cardH, 16);
-  ctx.fillStyle = 'rgba(10, 14, 36, 0.65)';
+  ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+  ctx.fillStyle = 'rgba(7, 10, 24, 0.75)'; // Darker, cleaner background
   ctx.fill();
-  ctx.strokeStyle = 'rgba(248, 113, 113, 0.2)';
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(248, 113, 113, 0.15)'; // Softer borders
   ctx.lineWidth = 1;
   ctx.stroke();
 
   ctx.textAlign = 'center';
 
-  // Title with glow
+  // Title with clean letter spacing and subtle neon glow
   ctx.save();
-  ctx.shadowColor = 'rgba(248,113,113,0.4)';
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = '#f87171';
-  ctx.font = '700 32px "Inter", system-ui, sans-serif';
-  ctx.fillText('GAME OVER', w / 2, cardY + 50);
+  ctx.shadowColor = 'rgba(248,113,113,0.5)';
+  ctx.shadowBlur = 25;
+  ctx.fillStyle = '#fca5a5';
+  ctx.font = '800 26px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '6px';
+  ctx.fillText('GAME OVER', w / 2, cardY + 54);
   ctx.restore();
+  ctx.letterSpacing = '0px';
 
   // Divider
-  const divGrad = ctx.createLinearGradient(w / 2 - 50, 0, w / 2 + 50, 0);
+  const divGrad = ctx.createLinearGradient(w / 2 - 80, 0, w / 2 + 80, 0);
   divGrad.addColorStop(0, 'rgba(248,113,113,0)');
-  divGrad.addColorStop(0.5, 'rgba(248,113,113,0.3)');
+  divGrad.addColorStop(0.5, 'rgba(248,113,113,0.25)');
   divGrad.addColorStop(1, 'rgba(248,113,113,0)');
   ctx.fillStyle = divGrad;
-  ctx.fillRect(w / 2 - 50, cardY + 62, 100, 1);
+  ctx.fillRect(w / 2 - 80, cardY + 70, 160, 1);
 
   // Score
-  ctx.fillStyle = '#f0f9ff';
-  ctx.font = '800 52px "Inter", system-ui, sans-serif';
-  ctx.fillText(`${score}`, w / 2, cardY + 118);
-  ctx.font = '500 11px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
-  ctx.fillText('TOTAL METERS', w / 2, cardY + 136);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 68px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '-2px';
+  ctx.fillText(`${score}`, w / 2, cardY + 138);
+  ctx.letterSpacing = '0px';
+  
+  ctx.font = '600 12px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '4px';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
+  ctx.fillText('TOTAL METERS', w / 2, cardY + 160);
+  ctx.letterSpacing = '0px';
 
-  // Score breakdown
-  const breakdownX = cardX + 18;
-  const breakdownY = cardY + 148;
-  const breakdownW = cardW - 36;
+  // Score breakdown panel
+  const breakdownX = cardX + 24;
+  const breakdownY = cardY + 180;
+  const breakdownW = cardW - 48;
   const breakdownH = 92;
   ctx.beginPath();
-  ctx.roundRect(breakdownX, breakdownY, breakdownW, breakdownH, 10);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+  ctx.roundRect(breakdownX, breakdownY, breakdownW, breakdownH, 12);
+  ctx.fillStyle = 'rgba(12, 17, 36, 0.6)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  const leftX = breakdownX + 12;
-  const rightX = breakdownX + breakdownW - 12;
-  let rowY = breakdownY + 20;
+  const leftX = breakdownX + 16;
+  const rightX = breakdownX + breakdownW - 16;
+  let rowY = breakdownY + 22;
   const rowGap = 18;
 
   ctx.textAlign = 'left';
-  ctx.font = '500 11px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
-  ctx.fillText('Distance', leftX, rowY);
+  ctx.font = '500 12px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '1px';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+  ctx.fillText('DISTANCE', leftX, rowY);
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#e2e8f0';
+  ctx.fillStyle = '#cbd5e1';
+  ctx.letterSpacing = '0px';
   ctx.fillText(`${distanceMeters}`, rightX, rowY);
 
   rowY += rowGap;
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
-  ctx.fillText('Combo bonus', leftX, rowY);
+  ctx.letterSpacing = '1px';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+  ctx.fillText('COMBO BONUS', leftX, rowY);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#fbbf24';
+  ctx.letterSpacing = '0px';
   ctx.fillText(`+${comboBonusEarned}`, rightX, rowY);
 
   rowY += rowGap;
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
-  ctx.fillText('Earth bonus', leftX, rowY);
+  ctx.letterSpacing = '1px';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+  ctx.fillText('EARTH BONUS', leftX, rowY);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#34d399';
+  ctx.letterSpacing = '0px';
   ctx.fillText(`+${earthBonusEarned}`, rightX, rowY);
 
-  rowY += rowGap;
+  // Mini divider before total
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
+  ctx.fillRect(leftX, rowY + 6, breakdownW - 32, 1);
+
+  rowY += rowGap + 5;
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.75)';
-  ctx.font = '600 11px "Inter", system-ui, sans-serif';
-  ctx.fillText('Total', leftX, rowY);
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.8)';
+  ctx.font = '700 12px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '1px';
+  ctx.fillText('TOTAL', leftX, rowY);
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#f8fafc';
+  ctx.fillStyle = '#ffffff';
+  ctx.letterSpacing = '0px';
   ctx.fillText(`${score}`, rightX, rowY);
 
-  // Contextual death feedback (similar to arcade crash callouts).
+  // Contextual death feedback
   const tipX = breakdownX;
-  const tipY = breakdownY + breakdownH + 10;
+  const tipY = breakdownY + breakdownH + 16;
   const tipW = breakdownW;
-  const tipH = 58;
+  const tipH = 68;
   ctx.beginPath();
-  ctx.roundRect(tipX, tipY, tipW, tipH, 10);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+  ctx.roundRect(tipX, tipY, tipW, tipH, 12);
+  ctx.fillStyle = 'rgba(12, 17, 36, 0.6)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
   ctx.textAlign = 'left';
-  ctx.font = '700 10px "Inter", system-ui, sans-serif';
+  ctx.font = '800 11px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '1.5px';
   ctx.fillStyle = deathFeedback.accent;
-  ctx.fillText(deathFeedback.title, tipX + 10, tipY + 18);
+  ctx.fillText(deathFeedback.title.toUpperCase(), tipX + 16, tipY + 22);
+  ctx.letterSpacing = '0px';
 
-  ctx.font = '500 10px "Inter", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.72)';
-  const tipLines = wrapTextLines(ctx, deathFeedback.tip, tipW - 20, 2);
-  const tipLineHeight = 12;
-  const tipTextY = tipY + 36;
+  ctx.font = '500 11px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+  const tipTextY = tipY + 40;
+  // Use slightly shorter width for inner padding
+  const tipLines = wrapTextLines(ctx, deathFeedback.tip, tipW - 32, 2);
+  const tipLineHeight = 14;
   for (let i = 0; i < tipLines.length; i++) {
-    ctx.fillText(tipLines[i], tipX + 10, tipTextY + i * tipLineHeight);
+    ctx.fillText(tipLines[i], tipX + 16, tipTextY + i * tipLineHeight);
   }
 
+  // Adjust Best score position if needed, pushed up slightly from the card bottom
   if (isNew) {
     ctx.save();
-    ctx.shadowColor = 'rgba(251,191,36,0.5)';
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = 'rgba(251,191,36,0.6)';
+    ctx.shadowBlur = 15;
     ctx.fillStyle = '#fbbf24';
-    ctx.font = '600 14px "Inter", system-ui, sans-serif';
+    ctx.font = '800 14px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '3px';
     ctx.textAlign = 'center';
-    ctx.fillText('★ NEW BEST ★', w / 2, cardY + 331);
+    ctx.fillText('NEW BEST SCORE', w / 2, cardY + cardH - 24);
     ctx.restore();
+    ctx.letterSpacing = '0px';
   } else {
-    ctx.font = '500 12px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
+    ctx.font = '600 12px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '3px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
     ctx.textAlign = 'center';
-    ctx.fillText(`BEST  ${highScore}`, w / 2, cardY + 331);
+    ctx.fillText(`BEST ${highScore}`, w / 2, cardY + cardH - 24);
+    ctx.letterSpacing = '0px';
   }
 
   // Retry CTA below card
   ctx.save();
-  ctx.shadowColor = 'rgba(56,189,248,0.4)';
-  ctx.shadowBlur = 12;
+  ctx.shadowColor = 'rgba(56,189,248,0.5)';
+  ctx.shadowBlur = 20;
   ctx.fillStyle = '#38bdf8';
-  ctx.font = '600 16px "Inter", system-ui, sans-serif';
-  ctx.fillText('TAP TO RETRY', w / 2, cardY + cardH + 40);
+  ctx.font = '800 18px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '4px';
+  ctx.textAlign = 'center';
+  ctx.fillText('TAP TO RETRY', w / 2, cardY + cardH + 48);
   ctx.restore();
+  ctx.letterSpacing = '0px';
 
   // Share Score button
   const shareBtnW = GAME_OVER_LAYOUT.shareButtonWidth;
@@ -1312,23 +1279,27 @@ export function renderGameOver(
   ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 8);
   
   if (isCopied) {
-    ctx.fillStyle = 'rgba(52,211,153,0.2)';
+    ctx.fillStyle = 'rgba(52,211,153,0.15)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(52,211,153,0.5)';
+    ctx.strokeStyle = 'rgba(52,211,153,0.4)';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.font = '700 13px "Inter", system-ui, sans-serif';
+    ctx.font = '700 12px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
     ctx.fillStyle = '#34d399';
     ctx.fillText('✓ CARD COPIED', w / 2, shareBtnY + 23);
+    ctx.letterSpacing = '0px';
   } else {
     ctx.fillStyle = 'rgba(56,189,248,0.12)';
     ctx.fill();
     ctx.strokeStyle = 'rgba(56,189,248,0.3)';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.font = '600 13px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(186,230,253,0.7)';
+    ctx.font = '600 12px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = '#7dd3fc';
     ctx.fillText('📋 COPY RUN CARD', w / 2, shareBtnY + 23);
+    ctx.letterSpacing = '0px';
   }
 }
 

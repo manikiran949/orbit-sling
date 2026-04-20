@@ -200,15 +200,66 @@ const OrbitGame = () => {
     return () => window.removeEventListener('resize', resize);
   }, [resize]);
 
-  // Keyboard handler for pause
+  // Keyboard shortcuts:
+  // - Space / Enter: start, retry, or release from orbit
+  // - Escape / P: pause or resume
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        initAudio();
-        const state = stateRef.current;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      const code = e.code;
+      const key = e.key.toLowerCase();
+      const isActionKey = code === 'Space' || code === 'Enter';
+      const isPauseKey = key === 'escape' || key === 'p';
+
+      if (!isActionKey && !isPauseKey) return;
+      if (e.repeat) return;
+
+      e.preventDefault();
+      initAudio();
+      const state = stateRef.current;
+
+      if (isPauseKey) {
         if (state.phase === 'playing') {
           togglePause(state);
           audio.playClick();
+        }
+        return;
+      }
+
+      if (state.phase === 'menu') {
+        state.phase = 'playing';
+        audio.startMusic();
+        audio.playClick();
+        return;
+      }
+
+      if (state.phase === 'gameover') {
+        const hs = state.highScore;
+        const settings = state.settings;
+        stateRef.current = createInitialState(window.innerHeight);
+        stateRef.current.highScore = hs;
+        stateRef.current.settings = settings;
+        stateRef.current.phase = 'playing';
+        audio.playClick();
+        if (!audio.isPlaying) audio.startMusic();
+        return;
+      }
+
+      if (state.phase === 'playing' && state.paused) {
+        togglePause(state);
+        audio.playClick();
+        return;
+      }
+
+      if (state.phase === 'playing') {
+        const wasOrbiting = state.isOrbiting;
+        releaseRocket(state);
+        if (wasOrbiting) {
+          audio.playThrust();
         }
       }
     };
