@@ -101,6 +101,9 @@ export interface GameState {
   solarFlares: SolarFlare[];
   camera: Vec2;
   score: number;
+  distanceMeters: number;
+  comboBonusEarned: number;
+  earthBonusEarned: number;
   highScore: number;
   isOrbiting: boolean;
   orbitPlanetIndex: number;

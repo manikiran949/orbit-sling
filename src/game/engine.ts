@@ -288,6 +288,9 @@ export function createInitialState(canvasH = 600): GameState {
     solarFlares: [],
     camera: { x: 0, y: 0 },
     score: 0,
+    distanceMeters: 0,
+    comboBonusEarned: 0,
+    earthBonusEarned: 0,
     highScore: parseInt(localStorage.getItem('orbitHighScore') || '0'),
     isOrbiting: true,
     orbitPlanetIndex: 0,
@@ -386,7 +389,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         state.combo += 1;
         state.comboMultiplier = Math.min(5, 1 + state.combo * 0.5);
         const comboBonus = Math.floor(10 * state.comboMultiplier);
-        state.score += comboBonus;
+        state.comboBonusEarned += comboBonus;
         state.scoreBonus = comboBonus;
         state.scoreBonusTimer = 60;
         state.scoreBonusLabel = 'combo';
@@ -420,7 +423,7 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         p.earthBonusClaimed = true;
         state.earthsFound += 1;
         const bonus = 50;
-        state.score += bonus;
+        state.earthBonusEarned += bonus;
         state.scoreBonus = bonus;
         state.scoreBonusTimer = 90;
         state.scoreBonusLabel = 'earth';
@@ -507,7 +510,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   const r = state.rocket;
 
   // Difficulty ramps slowly with distance
-  state.difficulty = Math.min(5, state.score / 500);
+  state.difficulty = Math.min(5, state.distanceMeters / 500);
 
   // Score bonus timer
   if (state.scoreBonusTimer > 0) {
@@ -626,7 +629,8 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   }
   state.camera.y = 0;
 
-  state.score = Math.max(state.score, Math.floor(r.x / 10));
+  state.distanceMeters = Math.max(state.distanceMeters, Math.floor(r.x / 10));
+  state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
 
   const lastPlanet = state.planets[state.planets.length - 1];
   if (r.x > lastPlanet.x - canvasW * 1.5) {

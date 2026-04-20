@@ -1030,6 +1030,9 @@ export function renderGameOver(
   w: number,
   h: number,
   score: number,
+  distanceMeters: number,
+  comboBonusEarned: number,
+  earthBonusEarned: number,
   highScore: number,
   isNew: boolean,
   isCopied: boolean
@@ -1045,7 +1048,7 @@ export function renderGameOver(
 
   // Card panel
   const cardW = Math.min(280, w * 0.8);
-  const cardH = 220;
+  const cardH = 300;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 - 10;
   ctx.beginPath();
@@ -1078,10 +1081,61 @@ export function renderGameOver(
   // Score
   ctx.fillStyle = '#f0f9ff';
   ctx.font = '800 52px "Inter", system-ui, sans-serif';
-  ctx.fillText(`${score}`, w / 2, cardY + 120);
+  ctx.fillText(`${score}`, w / 2, cardY + 118);
   ctx.font = '500 11px "Inter", system-ui, sans-serif';
   ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
-  ctx.fillText('METERS', w / 2, cardY + 140);
+  ctx.fillText('TOTAL METERS', w / 2, cardY + 136);
+
+  // Score breakdown
+  const breakdownX = cardX + 18;
+  const breakdownY = cardY + 148;
+  const breakdownW = cardW - 36;
+  const breakdownH = 92;
+  ctx.beginPath();
+  ctx.roundRect(breakdownX, breakdownY, breakdownW, breakdownH, 10);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const leftX = breakdownX + 12;
+  const rightX = breakdownX + breakdownW - 12;
+  let rowY = breakdownY + 20;
+  const rowGap = 18;
+
+  ctx.textAlign = 'left';
+  ctx.font = '500 11px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+  ctx.fillText('Distance', leftX, rowY);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText(`${distanceMeters}`, rightX, rowY);
+
+  rowY += rowGap;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+  ctx.fillText('Combo bonus', leftX, rowY);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillText(`+${comboBonusEarned}`, rightX, rowY);
+
+  rowY += rowGap;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+  ctx.fillText('Earth bonus', leftX, rowY);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#34d399';
+  ctx.fillText(`+${earthBonusEarned}`, rightX, rowY);
+
+  rowY += rowGap;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.75)';
+  ctx.font = '600 11px "Inter", system-ui, sans-serif';
+  ctx.fillText('Total', leftX, rowY);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillText(`${score}`, rightX, rowY);
 
   if (isNew) {
     ctx.save();
@@ -1089,12 +1143,14 @@ export function renderGameOver(
     ctx.shadowBlur = 12;
     ctx.fillStyle = '#fbbf24';
     ctx.font = '600 14px "Inter", system-ui, sans-serif';
-    ctx.fillText('★ NEW BEST ★', w / 2, cardY + 170);
+    ctx.textAlign = 'center';
+    ctx.fillText('★ NEW BEST ★', w / 2, cardY + 262);
     ctx.restore();
   } else {
     ctx.font = '500 12px "Inter", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
-    ctx.fillText(`BEST  ${highScore}`, w / 2, cardY + 170);
+    ctx.textAlign = 'center';
+    ctx.fillText(`BEST  ${highScore}`, w / 2, cardY + 262);
   }
 
   // Retry CTA below card

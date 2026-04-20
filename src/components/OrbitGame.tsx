@@ -60,7 +60,7 @@ const OrbitGame = () => {
           const w = window.innerWidth;
           const h = window.innerHeight;
           const cardW = Math.min(280, w * 0.8);
-          const cardH = 220;
+          const cardH = 300;
           const cardY = (h - cardH) / 2 - 10;
           const shareBtnW = 160;
           const shareBtnH = 36;
@@ -214,7 +214,18 @@ const OrbitGame = () => {
           render(ctx, state, w, h, time);
           if (state.phase === 'gameover') {
             if (shareFlashRef.current > 0) shareFlashRef.current--;
-            renderGameOver(ctx, w, h, state.score, state.highScore, isNewHigh, shareFlashRef.current > 0);
+            renderGameOver(
+              ctx,
+              w,
+              h,
+              state.score,
+              state.distanceMeters,
+              state.comboBonusEarned,
+              state.earthBonusEarned,
+              state.highScore,
+              isNewHigh,
+              shareFlashRef.current > 0
+            );
           }
         }
       } else {
@@ -223,7 +234,18 @@ const OrbitGame = () => {
         if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
-        renderGameOver(ctx, w, h, state.score, state.highScore, isNewHigh, shareFlashRef.current > 0);
+        renderGameOver(
+          ctx,
+          w,
+          h,
+          state.score,
+          state.distanceMeters,
+          state.comboBonusEarned,
+          state.earthBonusEarned,
+          state.highScore,
+          isNewHigh,
+          shareFlashRef.current > 0
+        );
       }
 
       animRef.current = requestAnimationFrame(loop);
