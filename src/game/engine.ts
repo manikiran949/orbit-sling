@@ -141,6 +141,7 @@ function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
     craters,
     rotation: Math.random() * Math.PI * 2,
     planetType,
+    earthBonusClaimed: false,
   };
 }
 
@@ -249,6 +250,7 @@ export function createInitialState(canvasH = 600): GameState {
     ],
     rotation: 0,
     planetType: 'rocky',
+    earthBonusClaimed: false,
   });
 
   // More starting planets, easier spacing
@@ -413,8 +415,9 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         });
       }
 
-      // Earth bonus!
-      if (p.planetType === 'earth') {
+      // Earth bonus can be claimed only once per Earth planet.
+      if (p.planetType === 'earth' && !p.earthBonusClaimed) {
+        p.earthBonusClaimed = true;
         state.earthsFound += 1;
         const bonus = 50;
         state.score += bonus;

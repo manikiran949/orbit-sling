@@ -869,6 +869,7 @@ export function renderMenu(
     ],
     rotation: time * 0.0006,
     planetType: 'gas',
+    earthBonusClaimed: false,
   };
   drawPlanet(ctx, planet);
 

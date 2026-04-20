@@ -18,6 +18,7 @@ export interface Planet {
   craters: { x: number; y: number; r: number }[];
   rotation: number;
   planetType: PlanetType;
+  earthBonusClaimed: boolean;
 }
 
 export interface Asteroid {

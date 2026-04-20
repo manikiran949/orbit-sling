@@ -194,7 +194,7 @@ const OrbitGame = () => {
             // Check if we just captured an Earth
             if (state.orbitPlanetIndex >= 0) {
               const p = state.planets[state.orbitPlanetIndex];
-              if (p.planetType === 'earth') {
+              if (p.planetType === 'earth' && state.scoreBonusLabel === 'earth' && state.scoreBonusTimer === 90) {
                 audio.playBonus();
               }
             }
