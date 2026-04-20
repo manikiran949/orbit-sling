@@ -57,7 +57,7 @@ function loadSettings(): GameSettings {
     const s = localStorage.getItem('orbitSettings');
     if (s) return JSON.parse(s);
   } catch { /* ignore */ }
-  return { musicVolume: 0.5, sfxVolume: 0.7, lowGraphics: false };
+  return { musicVolume: 0.5, sfxVolume: 0.7, lowGraphics: false, rocketType: 'aerospace' };
 }
 
 export function saveSettings(settings: GameSettings) {

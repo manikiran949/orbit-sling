@@ -75,6 +75,45 @@ const OrbitGame = () => {
     const state = stateRef.current;
 
     if (state.phase === 'menu') {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        
+        const py = h / 2 + 10;
+        const verticalScale = Math.max(0.85, Math.min(1.1, h / 800));
+        const selectorY = py + 250 * verticalScale;
+        
+        // Tap targets for rocket selection
+        const leftTargetX = w / 2 - 110 * verticalScale;
+        const rightTargetX = w / 2 + 110 * verticalScale;
+        const targetRadius = 40; // generous touch target
+
+        if (Math.abs(my - selectorY) < targetRadius) {
+          const types: ('aerospace' | 'classic' | 'stealth')[] = ['aerospace', 'classic', 'stealth'];
+          let currentIdx = types.indexOf(state.settings.rocketType || 'aerospace');
+          
+          if (Math.abs(mx - leftTargetX) < targetRadius) {
+            currentIdx = (currentIdx - 1 + types.length) % types.length;
+            state.settings.rocketType = types[currentIdx];
+            saveSettings(state.settings);
+            audio.playClick();
+            updateVisualsOnly(state);
+            return;
+          } else if (Math.abs(mx - rightTargetX) < targetRadius) {
+            currentIdx = (currentIdx + 1) % types.length;
+            state.settings.rocketType = types[currentIdx];
+            saveSettings(state.settings);
+            audio.playClick();
+            updateVisualsOnly(state);
+            return;
+          }
+        }
+      }
+
       state.phase = 'playing';
       audio.startMusic();
       audio.playClick();
@@ -293,7 +332,7 @@ const OrbitGame = () => {
       frameRef.current += 1;
 
       if (state.phase === 'menu') {
-        renderMenu(ctx, w, h, time, state.highScore);
+        renderMenu(ctx, w, h, time, state.highScore, state.settings.rocketType || 'aerospace');
       } else if (state.phase === 'playing') {
         if (state.paused) {
           render(ctx, state, w, h, time);

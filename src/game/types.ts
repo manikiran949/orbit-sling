@@ -73,6 +73,7 @@ export interface GameSettings {
   musicVolume: number;
   sfxVolume: number;
   lowGraphics: boolean;
+  rocketType: 'aerospace' | 'classic' | 'stealth';
 }
 
 export interface ScreenShake {
