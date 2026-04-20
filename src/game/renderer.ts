@@ -614,139 +614,167 @@ export function render(
   ctx.rotate(r.angle);
 
   // Ambient glow around rocket
-  const rocketGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 22);
-  rocketGlow.addColorStop(0, 'rgba(56,189,248,0.12)');
+  const rocketGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 28);
+  rocketGlow.addColorStop(0, 'rgba(56,189,248,0.2)');
   rocketGlow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = rocketGlow;
-  ctx.fillRect(-22, -22, 44, 44);
+  ctx.fillRect(-28, -28, 56, 56);
 
-  // Engine flame — multi-layered animated
-  const flicker1 = Math.sin(time * 0.03) * 0.3 + 1;
-  const flicker2 = Math.sin(time * 0.05 + 1) * 0.2 + 1;
-  const flameLen = 14 * flicker1;
-  const flameLen2 = 10 * flicker2;
+  // Engine flame — high-tech ion drive
+  const flicker1 = Math.sin(time * 0.05) * 0.2 + 0.9;
+  const flicker2 = Math.sin(time * 0.08 + 1) * 0.2 + 0.9;
+  const flameLen = 22 * flicker1;
+  const flameLen2 = 12 * flicker2;
 
-  // Outer flame (red-orange glow)
-  const outerFlame = ctx.createLinearGradient(-9, 0, -9 - flameLen, 0);
-  outerFlame.addColorStop(0, 'rgba(251,146,60,0.8)');
-  outerFlame.addColorStop(0.5, 'rgba(220,38,38,0.4)');
-  outerFlame.addColorStop(1, 'rgba(220,38,38,0)');
+  ctx.globalCompositeOperation = 'screen';
+  
+  // Outer ion plume
+  const outerFlame = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
+  outerFlame.addColorStop(0, 'rgba(56, 189, 248, 0.9)');
+  outerFlame.addColorStop(0.4, 'rgba(14, 165, 233, 0.4)');
+  outerFlame.addColorStop(1, 'rgba(2, 132, 199, 0)');
   ctx.fillStyle = outerFlame;
   ctx.beginPath();
-  ctx.moveTo(-9, -5);
-  ctx.lineTo(-9 - flameLen, 0);
-  ctx.lineTo(-9, 5);
+  ctx.moveTo(-10, -4);
+  ctx.lineTo(-10 - flameLen, 0);
+  ctx.lineTo(-10, 4);
   ctx.closePath();
   ctx.fill();
 
-  // Inner flame (white-hot core)
-  const innerFlame = ctx.createLinearGradient(-9, 0, -9 - flameLen2, 0);
-  innerFlame.addColorStop(0, '#fef3c7');
-  innerFlame.addColorStop(0.5, '#fbbf24');
-  innerFlame.addColorStop(1, 'rgba(251,191,36,0)');
+  // Inner plasma core
+  const innerFlame = ctx.createLinearGradient(-10, 0, -10 - flameLen2, 0);
+  innerFlame.addColorStop(0, '#ffffff');
+  innerFlame.addColorStop(0.5, '#7dd3fc');
+  innerFlame.addColorStop(1, 'rgba(125, 211, 252, 0)');
   ctx.fillStyle = innerFlame;
   ctx.beginPath();
-  ctx.moveTo(-9, -3);
-  ctx.lineTo(-9 - flameLen2, 0);
-  ctx.lineTo(-9, 3);
+  ctx.moveTo(-10, -2);
+  ctx.lineTo(-10 - flameLen2, 0);
+  ctx.lineTo(-10, 2);
   ctx.closePath();
   ctx.fill();
 
-  // Fins — swept back, larger
-  const finGrad = ctx.createLinearGradient(0, -6, 0, -10);
-  finGrad.addColorStop(0, '#0369a1');
-  finGrad.addColorStop(1, '#0284c7');
-  ctx.fillStyle = finGrad;
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Delta Wings — Sleek aerospace aesthetic
+  const drawWing = (yDir: number) => {
+    ctx.beginPath();
+    ctx.moveTo(0, 3 * yDir);
+    ctx.lineTo(-6, 12 * yDir);
+    ctx.lineTo(-12, 12 * yDir);
+    ctx.lineTo(-10, 4 * yDir);
+    ctx.closePath();
+    
+    const wingGrad = ctx.createLinearGradient(-10, 3 * yDir, 0, 12 * yDir);
+    wingGrad.addColorStop(0, '#f8fafc');
+    wingGrad.addColorStop(1, '#94a3b8');
+    ctx.fillStyle = wingGrad;
+    ctx.fill();
+    
+    // Racing stripe on the wing
+    ctx.beginPath();
+    ctx.moveTo(-2, 4 * yDir);
+    ctx.lineTo(-7, 11 * yDir);
+    ctx.lineTo(-8.5, 11 * yDir);
+    ctx.lineTo(-3.5, 4 * yDir);
+    ctx.fillStyle = '#f97316'; // Vibrant orange
+    ctx.fill();
+    
+    // Wing outline
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  };
+  drawWing(1);  // right wing
+  drawWing(-1); // left wing
+
+  // Jet Canards (small front wings)
+  const drawCanard = (yDir: number) => {
+    ctx.beginPath();
+    ctx.moveTo(10, 2 * yDir);
+    ctx.lineTo(6, 6 * yDir);
+    ctx.lineTo(4, 6 * yDir);
+    ctx.lineTo(6, 2 * yDir);
+    ctx.closePath();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fill();
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+  drawCanard(1);
+  drawCanard(-1);
+
+  // Main Hull (sleek aerodynamic bullet)
   ctx.beginPath();
-  ctx.moveTo(-5, -6);
-  ctx.lineTo(-11, -10);
-  ctx.lineTo(-8, -10);
-  ctx.lineTo(-2, -6);
+  ctx.moveTo(18, 0); // Very sharp nose
+  ctx.bezierCurveTo(12, -4.5, 0, -5, -12, -4);
+  ctx.lineTo(-12, 4);
+  ctx.bezierCurveTo(0, 5, 12, 4.5, 18, 0);
   ctx.closePath();
+  
+  // Clean white glossy hull
+  const hullGrad = ctx.createLinearGradient(-12, -5, 18, 5);
+  hullGrad.addColorStop(0, '#e2e8f0');
+  hullGrad.addColorStop(0.3, '#ffffff');
+  hullGrad.addColorStop(0.8, '#f8fafc');
+  hullGrad.addColorStop(1, '#ffffff');
+  ctx.fillStyle = hullGrad;
   ctx.fill();
-  ctx.strokeStyle = '#0c4a6e';
-  ctx.lineWidth = 0.5;
+  
+  // Dimensional under-shadow
+  const hullUnder = ctx.createLinearGradient(0, 0, 0, 5);
+  hullUnder.addColorStop(0, 'rgba(0,0,0,0)');
+  hullUnder.addColorStop(1, 'rgba(71,85,105,0.2)');
+  ctx.fillStyle = hullUnder;
+  ctx.fill();
+
+  // Vibrant Orange Racing Stripe down the hull
+  ctx.beginPath();
+  ctx.moveTo(12, 0);
+  ctx.lineTo(-12, 0);
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  const finGrad2 = ctx.createLinearGradient(0, 6, 0, 10);
-  finGrad2.addColorStop(0, '#0369a1');
-  finGrad2.addColorStop(1, '#0284c7');
-  ctx.fillStyle = finGrad2;
+  // Engine nozzle housing
   ctx.beginPath();
-  ctx.moveTo(-5, 6);
-  ctx.lineTo(-11, 10);
-  ctx.lineTo(-8, 10);
-  ctx.lineTo(-2, 6);
+  ctx.moveTo(-11, -3);
+  ctx.lineTo(-13.5, -4);
+  ctx.lineTo(-13.5, 4);
+  ctx.lineTo(-11, 3);
   ctx.closePath();
+  ctx.fillStyle = '#334155';
   ctx.fill();
-  ctx.strokeStyle = '#0c4a6e';
-  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Rocket body — sleek with metallic gradient
+  // Golden Reflection Cockpit 
   ctx.beginPath();
-  ctx.moveTo(16, 0);
-  ctx.quadraticCurveTo(10, -6, -2, -6);
-  ctx.lineTo(-9, -5);
-  ctx.lineTo(-9, 5);
-  ctx.lineTo(-2, 6);
-  ctx.quadraticCurveTo(10, 6, 16, 0);
+  ctx.moveTo(10, -0.5);
+  ctx.lineTo(2, -3.5);
+  ctx.lineTo(-4, -3.5);
+  ctx.lineTo(1, -0.5);
   ctx.closePath();
-  const bodyGrad = ctx.createLinearGradient(0, -6, 0, 6);
-  bodyGrad.addColorStop(0, '#e0f2fe');
-  bodyGrad.addColorStop(0.3, '#bae6fd');
-  bodyGrad.addColorStop(0.5, '#7dd3fc');
-  bodyGrad.addColorStop(0.7, '#38bdf8');
-  bodyGrad.addColorStop(1, '#0284c7');
-  ctx.fillStyle = bodyGrad;
-  ctx.fill();
-  ctx.strokeStyle = '#0c4a6e';
-  ctx.lineWidth = 0.7;
-  ctx.stroke();
-
-  // Panel line detail
-  ctx.beginPath();
-  ctx.moveTo(-4, -5.5);
-  ctx.lineTo(-4, 5.5);
-  ctx.strokeStyle = 'rgba(12,74,110,0.3)';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
-
-  // Engine nozzle
-  ctx.beginPath();
-  ctx.moveTo(-9, -4.5);
-  ctx.lineTo(-10.5, -5);
-  ctx.lineTo(-10.5, 5);
-  ctx.lineTo(-9, 4.5);
-  ctx.closePath();
-  ctx.fillStyle = '#475569';
-  ctx.fill();
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
-
-  // Cockpit window — glowing
-  ctx.save();
-  ctx.shadowColor = 'rgba(34,211,238,0.5)';
-  ctx.shadowBlur = 6;
-  ctx.beginPath();
-  ctx.arc(6, 0, 2.8, 0, Math.PI * 2);
-  const cockpitGrad = ctx.createRadialGradient(5.5, -0.5, 0, 6, 0, 2.8);
-  cockpitGrad.addColorStop(0, '#a5f3fc');
-  cockpitGrad.addColorStop(0.5, '#22d3ee');
-  cockpitGrad.addColorStop(1, '#0891b2');
+  
+  const cockpitGrad = ctx.createLinearGradient(-4, -3.5, 10, -0.5);
+  cockpitGrad.addColorStop(0, '#fcd34d');
+  cockpitGrad.addColorStop(0.5, '#f59e0b');
+  cockpitGrad.addColorStop(1, '#ffffff'); // bright glare reflection
   ctx.fillStyle = cockpitGrad;
   ctx.fill();
-  ctx.strokeStyle = '#0c4a6e';
-  ctx.lineWidth = 0.6;
+  ctx.strokeStyle = '#d97706';
+  ctx.lineWidth = 0.5;
   ctx.stroke();
-  ctx.restore();
 
-  // Nose tip highlight
+  // Soft hull rim light (top edge)
   ctx.beginPath();
-  ctx.arc(14, 0, 1.2, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.fill();
+  ctx.moveTo(16, -1);
+  ctx.bezierCurveTo(10, -4, 0, -4.5, -10, -3.5);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   ctx.restore();
 
@@ -769,20 +797,28 @@ export function render(
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Direction indicator (small arrow ahead of rocket)
-    const tangentAngle = state.orbitAngle + (state.orbitDirection * Math.PI / 2);
-    const ax = r.x + Math.cos(tangentAngle) * 22;
-    const ay = r.y + Math.sin(tangentAngle) * 22;
+    // High-tech projected trajectory arc (replaces the clunky arrow)
     ctx.save();
-    ctx.translate(ax, ay);
-    ctx.rotate(tangentAngle);
-    ctx.fillStyle = 'rgba(186, 230, 253, 0.55)';
+    ctx.translate(p.x, p.y);
+    
+    const gap = 0.08 * state.orbitDirection;     // Gap from the nose
+    const mid = 0.32 * state.orbitDirection;     // Main bright arc
+    const tail = 0.45 * state.orbitDirection;    // Fading tail dot
+    
     ctx.beginPath();
-    ctx.moveTo(6, 0);
-    ctx.lineTo(-3, -3);
-    ctx.lineTo(-3, 3);
-    ctx.closePath();
-    ctx.fill();
+    ctx.arc(0, 0, p.orbitRadius, state.orbitAngle + gap, state.orbitAngle + mid, state.orbitDirection < 0);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, p.orbitRadius, state.orbitAngle + mid + (0.05 * state.orbitDirection), state.orbitAngle + tail, state.orbitDirection < 0);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
     ctx.restore();
   }
 
@@ -995,14 +1031,43 @@ export function renderMenu(
   rg.addColorStop(1, 'rgba(56,189,248,0)');
   ctx.fillStyle = rg;
   ctx.fillRect(ox - 14, oy - 14, 28, 28);
+  
+  // Draw sleek miniature rocket
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.rotate(orbitAngle + Math.PI / 2); // tangent to orbit
+  ctx.scale(0.8, 0.8);
+  
   ctx.beginPath();
-  ctx.arc(ox, oy, 4, 0, Math.PI * 2);
-  ctx.fillStyle = '#7dd3fc';
+  ctx.moveTo(12, 0); // nose
+  ctx.lineTo(-6, 5); // left wing
+  ctx.lineTo(-3, 0); // engine inlet
+  ctx.lineTo(-6, -5); // right wing
+  ctx.closePath();
+  
+  const miniRocketGrad = ctx.createLinearGradient(-6, -5, 12, 5);
+  miniRocketGrad.addColorStop(0, '#94a3b8');
+  miniRocketGrad.addColorStop(1, '#ffffff');
+  ctx.fillStyle = miniRocketGrad;
   ctx.fill();
+  
+  // High-tech mini engine flare
+  const flicker = Math.sin(time * 0.05) * 0.2 + 0.8;
+  ctx.globalCompositeOperation = 'screen';
   ctx.beginPath();
-  ctx.arc(ox, oy, 2, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
+  ctx.moveTo(-3, 0);
+  ctx.lineTo(-12 * flicker, 0);
+  ctx.strokeStyle = 'rgba(56,189,248,0.8)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-3, 0);
+  ctx.lineTo(-8 * flicker, 0);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  ctx.restore();
 
   // Title - massive, clean typography
   ctx.textAlign = 'center';
