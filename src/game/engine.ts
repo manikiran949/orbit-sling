@@ -316,6 +316,7 @@ export function createInitialState(canvasH = 600): GameState {
     sunAngle: -Math.PI / 4,
     lastOrbitTime: 0,
     shareMessage: '',
+    deathReason: '',
     showTutorial: !localStorage.getItem('orbitTutorialSeen'),
   };
 }
@@ -686,6 +687,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   for (const a of state.asteroids) {
     const d = Math.hypot(a.x - r.x, a.y - r.y);
     if (d < a.radius + 6) {
+      state.deathReason = 'asteroid';
       spawnDeathExplosion(state);
       buildShareMessage(state);
       return false;
@@ -693,11 +695,13 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   }
 
   if (!state.isOrbiting && (r.y < -40 || r.y > canvasH + 40)) {
+    state.deathReason = 'out-of-bounds';
     spawnDeathExplosion(state);
     buildShareMessage(state);
     return false;
   }
   if (r.x < state.camera.x - 60) {
+    state.deathReason = 'fell-behind';
     spawnDeathExplosion(state);
     buildShareMessage(state);
     return false;
@@ -707,17 +711,33 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
 }
 
 export function buildShareMessage(state: GameState): void {
+  const deathReasonLabel: Record<GameState['deathReason'], string> = {
+    asteroid: 'Hit an asteroid',
+    'out-of-bounds': 'Flew out of bounds',
+    'fell-behind': 'Lost forward momentum',
+    '': 'Run ended',
+  };
+
+  const total = state.score.toLocaleString();
+  const distance = state.distanceMeters.toLocaleString();
+  const comboBonus = state.comboBonusEarned.toLocaleString();
+  const earthBonus = state.earthBonusEarned.toLocaleString();
+
   const lines = [
     '🚀 ORBIT SLINGSHOT 🚀',
     '━━━━━━━━━━━━━━━━━━━━',
-    `🏆 Score: ${state.score.toLocaleString()}m`
+    `🏆 Total: ${total}m`,
+    `📏 Distance: ${distance}m`,
+    `🔥 Combo Bonus: +${comboBonus}m`,
+    `🌍 Earth Bonus: +${earthBonus}m`,
+    `💥 ${deathReasonLabel[state.deathReason]}`,
   ];
 
   if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
   if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
 
   lines.push('');
-  lines.push('I survived the glass plains! Can you beat my score?');
+  lines.push('Can you beat this run?');
   lines.push('🔗 https://manikiran949.itch.io/orbit-sling');
 
   state.shareMessage = lines.join('\n');

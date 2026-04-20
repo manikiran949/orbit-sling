@@ -1,5 +1,14 @@
 import { GameState, Planet } from './types';
 
+export const GAME_OVER_LAYOUT = {
+  cardWidthMax: 280,
+  cardHeight: 352,
+  cardYOffset: -10,
+  shareButtonWidth: 160,
+  shareButtonHeight: 36,
+  shareButtonYOffset: 55,
+} as const;
+
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
   return [
@@ -15,6 +24,81 @@ function shade(hex: string, factor: number): string {
   const ng = Math.max(0, Math.min(255, Math.floor(g * factor)));
   const nb = Math.max(0, Math.min(255, Math.floor(b * factor)));
   return `rgb(${nr},${ng},${nb})`;
+}
+
+function getDeathFeedback(deathReason: GameState['deathReason']): { title: string; tip: string; accent: string } {
+  switch (deathReason) {
+    case 'asteroid':
+      return {
+        title: 'CRASHED INTO ASTEROID',
+        tip: 'Tip: Release a little earlier and avoid dense rock lanes.',
+        accent: '#fb7185',
+      };
+    case 'out-of-bounds':
+      return {
+        title: 'LOST IN SPACE',
+        tip: 'Tip: Use a backtrack orbit to re-aim before committing.',
+        accent: '#fb923c',
+      };
+    case 'fell-behind':
+      return {
+        title: 'MOMENTUM LOST',
+        tip: 'Tip: Chain forward captures to keep pace with the camera.',
+        accent: '#38bdf8',
+      };
+    default:
+      return {
+        title: 'RUN ENDED',
+        tip: 'Tip: One clean release can recover most bad trajectories.',
+        accent: '#94a3b8',
+      };
+  }
+}
+
+function wrapTextLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [''];
+
+  const lines: string[] = [];
+  let current = words[0];
+
+  for (let i = 1; i < words.length; i++) {
+    const candidate = `${current} ${words[i]}`;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = words[i];
+      if (lines.length === maxLines) break;
+    }
+  }
+
+  if (lines.length < maxLines) {
+    lines.push(current);
+  }
+
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+  }
+
+  if (lines.length === maxLines) {
+    const allWordsUsed = lines.join(' ').split(/\s+/).length;
+    if (allWordsUsed < words.length) {
+      const base = lines[maxLines - 1];
+      let truncated = base;
+      while (truncated.length > 0 && ctx.measureText(`${truncated}…`).width > maxWidth) {
+        truncated = truncated.slice(0, -1);
+      }
+      lines[maxLines - 1] = `${truncated}…`;
+    }
+  }
+
+  return lines;
 }
 
 function drawEarth(ctx: CanvasRenderingContext2D, p: Planet) {
@@ -123,6 +207,33 @@ function drawEarth(ctx: CanvasRenderingContext2D, p: Planet) {
   ctx.strokeStyle = 'rgba(100,180,255,0.18)';
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Mark Earths whose +50 reward was already claimed.
+  if (p.earthBonusClaimed) {
+    const badgeR = Math.max(7, r * 0.2);
+    const badgeX = p.x + r * 0.5;
+    const badgeY = p.y - r * 0.5;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(16,185,129,0.92)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(209,250,229,0.9)';
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(badgeX - badgeR * 0.45, badgeY + badgeR * 0.02);
+    ctx.lineTo(badgeX - badgeR * 0.1, badgeY + badgeR * 0.34);
+    ctx.lineTo(badgeX + badgeR * 0.5, badgeY - badgeR * 0.32);
+    ctx.strokeStyle = '#ecfdf5';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Orbit ring
   ctx.save();
@@ -1033,10 +1144,13 @@ export function renderGameOver(
   distanceMeters: number,
   comboBonusEarned: number,
   earthBonusEarned: number,
+  deathReason: GameState['deathReason'],
   highScore: number,
   isNew: boolean,
   isCopied: boolean
 ) {
+  const deathFeedback = getDeathFeedback(deathReason);
+
   // Dark overlay with vignette
   ctx.fillStyle = 'rgba(4, 6, 15, 0.85)';
   ctx.fillRect(0, 0, w, h);
@@ -1047,10 +1161,10 @@ export function renderGameOver(
   ctx.fillRect(0, 0, w, h);
 
   // Card panel
-  const cardW = Math.min(280, w * 0.8);
-  const cardH = 300;
+  const cardW = Math.min(GAME_OVER_LAYOUT.cardWidthMax, w * 0.8);
+  const cardH = GAME_OVER_LAYOUT.cardHeight;
   const cardX = (w - cardW) / 2;
-  const cardY = (h - cardH) / 2 - 10;
+  const cardY = (h - cardH) / 2 + GAME_OVER_LAYOUT.cardYOffset;
   ctx.beginPath();
   ctx.roundRect(cardX, cardY, cardW, cardH, 16);
   ctx.fillStyle = 'rgba(10, 14, 36, 0.65)';
@@ -1137,6 +1251,33 @@ export function renderGameOver(
   ctx.fillStyle = '#f8fafc';
   ctx.fillText(`${score}`, rightX, rowY);
 
+  // Contextual death feedback (similar to arcade crash callouts).
+  const tipX = breakdownX;
+  const tipY = breakdownY + breakdownH + 10;
+  const tipW = breakdownW;
+  const tipH = 58;
+  ctx.beginPath();
+  ctx.roundRect(tipX, tipY, tipW, tipH, 10);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.font = '700 10px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = deathFeedback.accent;
+  ctx.fillText(deathFeedback.title, tipX + 10, tipY + 18);
+
+  ctx.font = '500 10px "Inter", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.72)';
+  const tipLines = wrapTextLines(ctx, deathFeedback.tip, tipW - 20, 2);
+  const tipLineHeight = 12;
+  const tipTextY = tipY + 36;
+  for (let i = 0; i < tipLines.length; i++) {
+    ctx.fillText(tipLines[i], tipX + 10, tipTextY + i * tipLineHeight);
+  }
+
   if (isNew) {
     ctx.save();
     ctx.shadowColor = 'rgba(251,191,36,0.5)';
@@ -1144,13 +1285,13 @@ export function renderGameOver(
     ctx.fillStyle = '#fbbf24';
     ctx.font = '600 14px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('★ NEW BEST ★', w / 2, cardY + 262);
+    ctx.fillText('★ NEW BEST ★', w / 2, cardY + 331);
     ctx.restore();
   } else {
     ctx.font = '500 12px "Inter", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(186, 230, 253, 0.45)';
     ctx.textAlign = 'center';
-    ctx.fillText(`BEST  ${highScore}`, w / 2, cardY + 262);
+    ctx.fillText(`BEST  ${highScore}`, w / 2, cardY + 331);
   }
 
   // Retry CTA below card
@@ -1163,10 +1304,10 @@ export function renderGameOver(
   ctx.restore();
 
   // Share Score button
-  const shareBtnW = 160;
-  const shareBtnH = 36;
+  const shareBtnW = GAME_OVER_LAYOUT.shareButtonWidth;
+  const shareBtnH = GAME_OVER_LAYOUT.shareButtonHeight;
   const shareBtnX = (w - shareBtnW) / 2;
-  const shareBtnY = cardY + cardH + 55;
+  const shareBtnY = cardY + cardH + GAME_OVER_LAYOUT.shareButtonYOffset;
   ctx.beginPath();
   ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 8);
   
@@ -1178,7 +1319,7 @@ export function renderGameOver(
     ctx.stroke();
     ctx.font = '700 13px "Inter", system-ui, sans-serif';
     ctx.fillStyle = '#34d399';
-    ctx.fillText('✓ COPIED!', w / 2, shareBtnY + 23);
+    ctx.fillText('✓ CARD COPIED', w / 2, shareBtnY + 23);
   } else {
     ctx.fillStyle = 'rgba(56,189,248,0.12)';
     ctx.fill();
@@ -1187,7 +1328,7 @@ export function renderGameOver(
     ctx.stroke();
     ctx.font = '600 13px "Inter", system-ui, sans-serif';
     ctx.fillStyle = 'rgba(186,230,253,0.7)';
-    ctx.fillText('📋 SHARE SCORE', w / 2, shareBtnY + 23);
+    ctx.fillText('📋 COPY RUN CARD', w / 2, shareBtnY + 23);
   }
 }
 

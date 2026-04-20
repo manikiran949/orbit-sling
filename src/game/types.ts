@@ -4,6 +4,7 @@ export interface Vec2 {
 }
 
 export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
+export type DeathReason = 'asteroid' | 'out-of-bounds' | 'fell-behind' | '';
 
 export interface Planet {
   x: number;
@@ -129,5 +130,6 @@ export interface GameState {
   sunAngle: number;
   lastOrbitTime: number;
   shareMessage: string;
+  deathReason: DeathReason;
   showTutorial: boolean;
 }
