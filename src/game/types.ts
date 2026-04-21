@@ -74,6 +74,8 @@ export interface GameSettings {
   sfxVolume: number;
   lowGraphics: boolean;
   rocketType: 'aerospace' | 'classic' | 'stealth';
+  muted: boolean;
+  reducedMotion: boolean;
 }
 
 export interface ScreenShake {
@@ -133,4 +135,10 @@ export interface GameState {
   shareMessage: string;
   deathReason: DeathReason;
   showTutorial: boolean;
+  activeThemeIndex: number;
+  themeBannerTimer: number;
+  themeBannerIndex: number;
+  closeCalls: number;
+  closeCallTimer: number;
+  closeCallCooldown: number;
 }

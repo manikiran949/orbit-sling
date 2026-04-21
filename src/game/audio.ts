@@ -10,6 +10,8 @@ export class AudioManager {
   private musicPlaying = false;
   private musicVolume = 0.5;
   private sfxVolume = 0.7;
+  private muted = false;
+  private masterMusicFilter: BiquadFilterNode | null = null;
 
   init() {
     if (this.ctx) return;
@@ -30,13 +32,56 @@ export class AudioManager {
 
   setMusicVolume(v: number) {
     this.musicVolume = v;
-    if (this.musicGain) this.musicGain.gain.value = v * 0.3;
+    if (this.musicGain) this.musicGain.gain.value = this.muted ? 0 : v * 0.3;
   }
 
   setSfxVolume(v: number) {
     this.sfxVolume = v;
-    if (this.sfxGain) this.sfxGain.gain.value = v;
+    if (this.sfxGain) this.sfxGain.gain.value = this.muted ? 0 : v;
   }
+
+  setMuted(m: boolean) {
+    this.muted = m;
+    if (this.musicGain) this.musicGain.gain.value = m ? 0 : this.musicVolume * 0.3;
+    if (this.sfxGain) this.sfxGain.gain.value = m ? 0 : this.sfxVolume;
+  }
+
+  get isMuted() {
+    return this.muted;
+  }
+
+  /**
+   * Open the master music filter cutoff as combo intensity rises (0..1),
+   * brightening the ambient chord during streaks. Smoothed to avoid clicks.
+   */
+  setMusicIntensity(intensity: number) {
+    if (!this.masterMusicFilter || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(1, intensity));
+    const target = 800 + clamped * 1600; // 800Hz baseline up to 2400Hz
+    this.masterMusicFilter.frequency.setTargetAtTime(target, this.ctx.currentTime, 0.3);
+  }
+
+  /** Short tense rising swish for a near-miss with an asteroid. */
+  playCloseCall() {
+    const ctx = this.ensureCtx();
+    if (!this.sfxGain) return;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1400;
+    filter.Q.value = 1.5;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(filter).connect(gain).connect(this.sfxGain);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  }
+
 
   /** Short whoosh noise burst for releasing from orbit */
   playThrust() {
@@ -152,6 +197,38 @@ export class AudioManager {
     osc.stop(ctx.currentTime + 0.4);
   }
 
+  /** Shimmering ascending arpeggio for unlocking a new visual theme */
+  playThemeUnlock() {
+    const ctx = this.ensureCtx();
+    if (!this.sfxGain) return;
+    // A minor 7 arc: A4, C5, E5, G5, A5 — warm, cinematic
+    const notes = [440, 523, 659, 784, 880];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const gain = ctx.createGain();
+      const t = ctx.currentTime + i * 0.07;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.14, t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      // Subtle shimmer — slight detuned overtone
+      const shimmer = ctx.createOscillator();
+      shimmer.type = 'sine';
+      shimmer.frequency.value = freq * 2.01;
+      const shimmerGain = ctx.createGain();
+      shimmerGain.gain.setValueAtTime(0, t);
+      shimmerGain.gain.linearRampToValueAtTime(0.04, t + 0.03);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain).connect(this.sfxGain!);
+      shimmer.connect(shimmerGain).connect(this.sfxGain!);
+      osc.start(t);
+      shimmer.start(t);
+      osc.stop(t + 0.5);
+      shimmer.stop(t + 0.45);
+    });
+  }
+
   /** Combo escalation sound */
   playCombo(level: number) {
     const ctx = this.ensureCtx();
@@ -194,11 +271,13 @@ export class AudioManager {
     // Create a lush, spacey reverb
     const reverb = this.createReverb(ctx);
     
-    // Master filter to keep it warm and ambient
+    // Master filter to keep it warm and ambient. Stored on the instance so
+    // setMusicIntensity can open the cutoff when the player hits a combo.
     const masterFilter = ctx.createBiquadFilter();
     masterFilter.type = 'lowpass';
     masterFilter.frequency.value = 800;
-    
+    this.masterMusicFilter = masterFilter;
+
     masterFilter.connect(reverb);
     masterFilter.connect(this.musicGain); // Dry signal
     reverb.connect(this.musicGain);       // Wet signal (reverb)

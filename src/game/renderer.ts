@@ -1,13 +1,64 @@
 import { GameState, Planet } from './types';
+import { getActiveTheme, THEMES, parseColor } from './themes';
 
 export const GAME_OVER_LAYOUT = {
   cardWidthMax: 300,
   cardHeight: 415,
   cardYOffset: -10,
+  // Buttons sit side-by-side below the card to keep the whole screen in view
+  // on shorter windows. Share is narrower / secondary; retry is primary.
+  buttonYOffset: 28,
+  buttonHeight: 42,
+  buttonGap: 12,
+  retryButtonWidth: 180,
   shareButtonWidth: 160,
-  shareButtonHeight: 36,
-  shareButtonYOffset: 55,
 } as const;
+
+export const PAUSE_BUTTON = {
+  r: 18,
+  offsetX: 32,
+  offsetY: 90,
+} as const;
+
+export function getPauseButtonCenter(w: number): { cx: number; cy: number; r: number } {
+  return { cx: w - PAUSE_BUTTON.offsetX, cy: PAUSE_BUTTON.offsetY, r: PAUSE_BUTTON.r };
+}
+
+function getButtonRowY(h: number): number {
+  const cardH = GAME_OVER_LAYOUT.cardHeight;
+  const cardY = (h - cardH) / 2 + GAME_OVER_LAYOUT.cardYOffset;
+  return cardY + cardH + GAME_OVER_LAYOUT.buttonYOffset;
+}
+
+export function getRetryButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
+  const width = GAME_OVER_LAYOUT.retryButtonWidth;
+  const totalW = width + GAME_OVER_LAYOUT.buttonGap + GAME_OVER_LAYOUT.shareButtonWidth;
+  return {
+    x: (w - totalW) / 2,
+    y: getButtonRowY(h),
+    width,
+    height: GAME_OVER_LAYOUT.buttonHeight,
+  };
+}
+
+export function getShareButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
+  const width = GAME_OVER_LAYOUT.shareButtonWidth;
+  const totalW = GAME_OVER_LAYOUT.retryButtonWidth + GAME_OVER_LAYOUT.buttonGap + width;
+  return {
+    x: (w - totalW) / 2 + GAME_OVER_LAYOUT.retryButtonWidth + GAME_OVER_LAYOUT.buttonGap,
+    y: getButtonRowY(h),
+    width,
+    height: GAME_OVER_LAYOUT.buttonHeight,
+  };
+}
+
+export function getMuteButtonGeom(w: number, h: number): { cx: number; cy: number; r: number } {
+  const cardW = Math.min(320, w * 0.85);
+  const cardH = 320;
+  const cardX = (w - cardW) / 2;
+  const cardY = (h - cardH) / 2 - 20;
+  return { cx: cardX + cardW - 32, cy: cardY + 45, r: 14 };
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -26,33 +77,68 @@ function shade(hex: string, factor: number): string {
   return `rgb(${nr},${ng},${nb})`;
 }
 
-function getDeathFeedback(deathReason: GameState['deathReason']): { title: string; tip: string; accent: string } {
-  switch (deathReason) {
-    case 'asteroid':
-      return {
-        title: 'CRASHED INTO ASTEROID',
-        tip: 'Tip: Release a little earlier and avoid dense rock lanes.',
-        accent: '#fb7185',
-      };
-    case 'out-of-bounds':
-      return {
-        title: 'LOST IN SPACE',
-        tip: 'Tip: Use a backtrack orbit to re-aim before committing.',
-        accent: '#fb923c',
-      };
-    case 'fell-behind':
-      return {
-        title: 'MOMENTUM LOST',
-        tip: 'Tip: Chain forward captures to keep pace with the camera.',
-        accent: '#38bdf8',
-      };
-    default:
-      return {
-        title: 'RUN ENDED',
-        tip: 'Tip: One clean release can recover most bad trajectories.',
-        accent: '#94a3b8',
-      };
-  }
+const DEATH_FEEDBACK: Record<
+  NonNullable<GameState['deathReason']> | 'default',
+  { title: string; accent: string; tips: string[] }
+> = {
+  asteroid: {
+    title: 'CRASHED INTO ASTEROID',
+    accent: '#fb7185',
+    tips: [
+      'Tip: Release a little earlier and avoid dense rock lanes.',
+      'Tip: Asteroid fields cluster. Thread the gaps, don’t punch through.',
+      'Tip: If you see rocks ahead, orbit further around for a safer angle.',
+      'Tip: A lost combo beats a shattered rocket. Dodge first, chain later.',
+      'Tip: The safest exit from orbit is rarely the straightest one.',
+      'Tip: Asteroids don’t move. You do. Plan the arc, then commit.',
+    ],
+  },
+  'out-of-bounds': {
+    title: 'LOST IN SPACE',
+    accent: '#fb923c',
+    tips: [
+      'Tip: Use a backtrack orbit to realign before committing.',
+      'Tip: A half orbit gives you a cleaner launch angle than a quarter.',
+      'Tip: When nothing’s ahead, arc toward the center band where planets spawn.',
+      'Tip: Don’t release blind. Wait for the orbit marker to line up.',
+      'Tip: Gravity bends your trajectory. Account for it before firing.',
+      'Tip: Small course corrections beat one desperate recovery.',
+    ],
+  },
+  'fell-behind': {
+    title: 'MOMENTUM LOST',
+    accent: '#38bdf8',
+    tips: [
+      'Tip: Chain forward captures to keep pace with the camera.',
+      'Tip: Every wasted orbit lets the camera gain ground.',
+      'Tip: Short, direct slingshots stack faster than long graceful ones.',
+      'Tip: Momentum compounds. Each orbit feeds the next.',
+      'Tip: Don’t linger in orbit. The camera doesn’t wait.',
+      'Tip: When in doubt, launch forward. Backward orbits cost you.',
+    ],
+  },
+  '': {
+    title: 'RUN ENDED',
+    accent: '#94a3b8',
+    tips: [
+      'Tip: One clean release can recover most bad trajectories.',
+      'Tip: The best runs feel unhurried. Read the field before you act.',
+    ],
+  },
+  default: {
+    title: 'RUN ENDED',
+    accent: '#94a3b8',
+    tips: ['Tip: One clean release can recover most bad trajectories.'],
+  },
+};
+
+function getDeathFeedback(
+  deathReason: GameState['deathReason'],
+  tipSeed: number
+): { title: string; tip: string; accent: string } {
+  const entry = DEATH_FEEDBACK[deathReason] ?? DEATH_FEEDBACK.default;
+  const idx = Math.abs(tipSeed) % entry.tips.length;
+  return { title: entry.title, accent: entry.accent, tip: entry.tips[idx] };
 }
 
 function wrapTextLines(
@@ -874,9 +960,9 @@ export function render(
 ) {
   const settings = state.settings;
   const rocketType = settings.rocketType || 'aerospace';
-  // Screen shake
+  // Screen shake — suppressed when the reduced-motion setting is on.
   ctx.save();
-  if (state.screenShake.duration > 0) {
+  if (state.screenShake.duration > 0 && !settings.reducedMotion) {
     // Fade out shake over the last 30 frames
     const fade = Math.min(1, state.screenShake.duration / 30);
     const si = state.screenShake.intensity * fade;
@@ -887,34 +973,42 @@ export function render(
   }
 
   const cx = state.camera.x;
+  const theme = getActiveTheme(state.score);
 
-  // Deep space background — rich multi-stop gradient
+  // Deep space background — theme-driven multi-stop gradient
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#020515');
-  bg.addColorStop(0.25, '#070d2a');
-  bg.addColorStop(0.5, '#0b1030');
-  bg.addColorStop(0.75, '#06091e');
-  bg.addColorStop(1, '#020410');
+  bg.addColorStop(0, theme.bgStops[0]);
+  bg.addColorStop(0.25, theme.bgStops[1]);
+  bg.addColorStop(0.5, theme.bgStops[2]);
+  bg.addColorStop(0.75, theme.bgStops[3]);
+  bg.addColorStop(1, theme.bgStops[4]);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  // Subtle cosmic dust band (horizontal milky-way feel)
-  const dustY = h * 0.42;
-  const dustH = h * 0.35;
-  const dust = ctx.createRadialGradient(w * 0.5, dustY, 0, w * 0.5, dustY, w * 0.7);
-  dust.addColorStop(0, 'rgba(80, 70, 140, 0.04)');
-  dust.addColorStop(0.5, 'rgba(50, 60, 120, 0.025)');
+  // Subtle cosmic dust band (milky-way feel) — elliptical gradient so it
+  // fades smoothly on both axes instead of hard-edging at a fillRect boundary.
+  const dustRY = h * 0.22;
+  const dustSX = (w * 0.55) / dustRY;
+  ctx.save();
+  ctx.translate(w * 0.5, h * 0.5);
+  ctx.scale(dustSX, 1);
+  const dust = ctx.createRadialGradient(0, 0, 0, 0, 0, dustRY);
+  dust.addColorStop(0, theme.dust);
+  dust.addColorStop(0.5, theme.dust.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.6})`));
   dust.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = dust;
-  ctx.fillRect(0, dustY - dustH / 2, w, dustH);
+  ctx.fillRect(-dustRY, -dustRY, dustRY * 2, dustRY * 2);
+  ctx.restore();
 
-  // Nebulae — layered with multi-stop gradients for depth
-  for (const n of state.nebulae) {
+  // Nebulae — theme-tinted, layered with multi-stop gradients for depth
+  for (let ni = 0; ni < state.nebulae.length; ni++) {
+    const n = state.nebulae[ni];
     const nx = n.x - cx * 0.12;
     if (nx + n.radius < 0 || nx - n.radius > w) continue;
+    const tinted = theme.nebulaColors[ni % theme.nebulaColors.length];
     const ng = ctx.createRadialGradient(nx, n.y, 0, nx, n.y, n.radius);
-    ng.addColorStop(0, n.color);
-    ng.addColorStop(0.4, n.color.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.5})`));
+    ng.addColorStop(0, tinted);
+    ng.addColorStop(0.4, tinted.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.5})`));
     ng.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = ng;
     ctx.fillRect(nx - n.radius, n.y - n.radius, n.radius * 2, n.radius * 2);
@@ -1033,26 +1127,31 @@ export function render(
   }
   ctx.globalAlpha = 1;
 
-  // Rocket trail (glowing gradient line)
+  // Rocket trail — tinted with the active biome's accent color so the
+  // trail shifts color alongside the background when a new theme unlocks.
   const trail = state.rocket.trail;
   if (trail.length > 1) {
+    const [tr, tg, tb] = parseColor(theme.accentColor);
     for (let i = 1; i < trail.length; i++) {
       const alpha = i / trail.length;
       ctx.beginPath();
       ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
       ctx.lineTo(trail[i].x, trail[i].y);
-      ctx.strokeStyle = `hsla(190, 95%, 60%, ${alpha * 0.85})`;
+      ctx.strokeStyle = `rgba(${tr}, ${tg}, ${tb}, ${alpha * 0.85})`;
       ctx.lineWidth = alpha * 4;
       ctx.lineCap = 'round';
       ctx.stroke();
     }
-    // Outer glow pass
+    // Outer glow pass — lifted toward white for a hotter core/halo feel
     for (let i = 1; i < trail.length; i++) {
       const alpha = i / trail.length;
+      const gr = Math.min(255, tr + 40);
+      const gg = Math.min(255, tg + 40);
+      const gb = Math.min(255, tb + 40);
       ctx.beginPath();
       ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
       ctx.lineTo(trail[i].x, trail[i].y);
-      ctx.strokeStyle = `hsla(190, 95%, 70%, ${alpha * 0.2})`;
+      ctx.strokeStyle = `rgba(${gr}, ${gg}, ${gb}, ${alpha * 0.2})`;
       ctx.lineWidth = alpha * 9;
       ctx.lineCap = 'round';
       ctx.stroke();
@@ -1114,6 +1213,12 @@ export function render(
 
   ctx.restore();
 
+  // Theme vignette overlay — tints the whole scene without touching the HUD
+  if (theme.vignetteOverlay) {
+    ctx.fillStyle = theme.vignetteOverlay;
+    ctx.fillRect(0, 0, w, h);
+  }
+
   // HUD — glassmorphism score panel
   ctx.save();
   // Left panel bg
@@ -1153,24 +1258,97 @@ export function render(
   ctx.fillText(`${state.highScore}`, w - 26, 58);
   ctx.restore();
 
-  // Combo HUD
-  if (state.combo > 1) {
+  // On-screen pause button (top-right, below the BEST panel) — only while playing
+  if (state.phase === 'playing' && !state.paused) {
+    const pb = getPauseButtonCenter(w);
     ctx.save();
-    const comboAlpha = Math.min(1, state.comboTimer / 30);
-    ctx.globalAlpha = comboAlpha;
-    ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(251,191,36,0.5)';
-    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(pb.cx, pb.cy, pb.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(10, 14, 36, 0.6)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Pause icon — two rounded bars
+    ctx.fillStyle = '#e0f2fe';
+    const barW = 3.5;
+    const barH = 14;
+    const barGap = 4;
+    ctx.beginPath();
+    ctx.roundRect(pb.cx - barGap / 2 - barW, pb.cy - barH / 2, barW, barH, 1);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(pb.cx + barGap / 2, pb.cy - barH / 2, barW, barH, 1);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Combo meter HUD — only when a real multiplier is active (×1.5+)
+  if (state.combo > 1 && state.comboTimer > 0) {
+    const progress = Math.max(0, Math.min(1, state.comboTimer / 120));
+    const mult = state.comboMultiplier;
+    const isMax = mult >= 5;
+    const fadeIn = Math.min(1, (120 - state.comboTimer) / 6 + 0.35);
+    const fadeOut = Math.min(1, state.comboTimer / 20);
+    const alpha = Math.min(fadeIn, fadeOut);
+
+    const cmW = 184;
+    const cmH = 56;
+    const cmX = w / 2 - cmW / 2;
+    const cmY = 14;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    ctx.beginPath();
+    ctx.roundRect(cmX, cmY, cmW, cmH, 10);
+    ctx.fillStyle = 'rgba(10, 14, 36, 0.55)';
+    ctx.fill();
+    ctx.strokeStyle = isMax ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 191, 36, 0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Multiplier value
+    ctx.textAlign = 'left';
+    ctx.shadowColor = isMax ? 'rgba(251, 146, 60, 0.8)' : 'rgba(251, 191, 36, 0.6)';
+    ctx.shadowBlur = isMax ? 16 : 10;
     ctx.font = '800 22px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText(`x${state.combo} COMBO`, w / 2, 40);
-    // Timer bar
-    const barW = 80;
-    const barProg = state.comboTimer / 120;
-    ctx.fillStyle = 'rgba(251,191,36,0.15)';
-    ctx.fillRect(w / 2 - barW / 2, 48, barW, 4);
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(w / 2 - barW / 2, 48, barW * barProg, 4);
+    ctx.fillStyle = isMax ? '#fb923c' : '#fbbf24';
+    ctx.fillText(`×${mult.toFixed(1)}`, cmX + 14, cmY + 28);
+
+    ctx.shadowBlur = 0;
+    ctx.font = '600 10px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = isMax ? '#fb923c' : 'rgba(253, 230, 138, 0.8)';
+    ctx.fillText(isMax ? 'MAX COMBO' : `COMBO ×${state.combo}`, cmX + 14, cmY + 44);
+    ctx.letterSpacing = '0px';
+
+    // "Next capture" hint on right side
+    ctx.textAlign = 'right';
+    ctx.font = '500 10px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+    ctx.letterSpacing = '1px';
+    ctx.fillText('CHAIN', cmX + cmW - 14, cmY + 20);
+    ctx.letterSpacing = '0px';
+    ctx.font = '700 16px "Inter", system-ui, sans-serif';
+    const nextMult = Math.min(5, 1 + (state.combo + 1) * 0.5);
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillText(`×${nextMult.toFixed(1)}`, cmX + cmW - 14, cmY + 38);
+
+    // Progress bar — color shifts to red as time runs low
+    const barX = cmX + 14;
+    const barY = cmY + cmH - 8;
+    const barW = cmW - 28;
+    const barH = 4;
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.12)';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 2);
+    ctx.fill();
+    const barColor = progress < 0.25 ? '#fb7185' : isMax ? '#fb923c' : '#fbbf24';
+    ctx.fillStyle = barColor;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, Math.max(1, barW * progress), barH, 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -1202,6 +1380,98 @@ export function render(
       ctx.fillText('COMBO BONUS!', w / 2, bonusY + 18);
     }
 
+    ctx.restore();
+  }
+
+  // Theme-unlock banner — fades in, holds, fades out over ~3s
+  if (state.themeBannerTimer > 0) {
+    const banner = THEMES[state.themeBannerIndex];
+    const MAX = 180;
+    const progress = 1 - state.themeBannerTimer / MAX; // 0 → 1 over lifetime
+    let alpha = 1;
+    if (progress < 0.12) alpha = progress / 0.12;
+    else if (progress > 0.82) alpha = Math.max(0, (1 - progress) / 0.18);
+
+    const bw = 300;
+    const bh = 76;
+    const bx = w / 2 - bw / 2;
+    const by = h * 0.16;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Panel
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 12);
+    ctx.fillStyle = 'rgba(10, 14, 36, 0.75)';
+    ctx.fill();
+    ctx.strokeStyle = banner.accentColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Accent bar on the left edge
+    ctx.fillStyle = banner.accentColor;
+    ctx.fillRect(bx, by + 10, 3, bh - 20);
+
+    // Kicker
+    ctx.textAlign = 'left';
+    ctx.font = '600 10px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '3px';
+    ctx.fillStyle = banner.accentColor;
+    ctx.fillText('NEW BIOME UNLOCKED', bx + 18, by + 22);
+
+    // Theme name (glowing)
+    ctx.shadowColor = banner.accentColor;
+    ctx.shadowBlur = 14;
+    ctx.font = '800 20px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(banner.name.toUpperCase(), bx + 18, by + 44);
+    ctx.shadowBlur = 0;
+
+    // Tagline below name
+    ctx.font = '400 11px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.6)';
+    ctx.fillText(banner.tagline, bx + 18, by + 62);
+
+    // Distance marker on the right
+    ctx.textAlign = 'right';
+    ctx.font = '700 14px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+    ctx.fillText(`${banner.startDistance}m`, bx + bw - 18, by + 40);
+
+    ctx.letterSpacing = '0px';
+    ctx.restore();
+  }
+
+  // Subtle theme tag in the HUD — small pill under the score panel
+  {
+    const activeTheme = THEMES[state.activeThemeIndex];
+    ctx.save();
+    ctx.font = '600 9px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1.5px';
+    ctx.fillStyle = activeTheme.accentColor;
+    ctx.globalAlpha = 0.75;
+    ctx.textAlign = 'left';
+    ctx.fillText(activeTheme.name.toUpperCase(), 26, 82);
+    ctx.restore();
+  }
+
+  // Close-call flash — a brief amber pulse near the rocket area
+  if (state.closeCallTimer > 0) {
+    const fade = state.closeCallTimer / 24;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(251, 146, 60, 0.9)';
+    ctx.shadowBlur = 18;
+    ctx.font = '800 18px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '4px';
+    ctx.fillStyle = '#fb923c';
+    ctx.fillText('CLOSE CALL', w / 2, h * 0.22);
+    ctx.letterSpacing = '0px';
     ctx.restore();
   }
 
@@ -1298,12 +1568,7 @@ export function renderMenu(
     accentColor: '#b87a1c',
     hasRing: true,
     ringTilt: -0.22,
-    craters: [
-      { x: -16, y: -14, r: 9 },
-      { x: 18, y: 16, r: 8 },
-      { x: -8, y: 22, r: 6 },
-      { x: 10, y: -20, r: 5 },
-    ],
+    craters: [],
     rotation: time * 0.0004,
     planetType: 'gas',
     earthBonusClaimed: false,
@@ -1379,36 +1644,67 @@ export function renderMenu(
   ctx.letterSpacing = '1px';
   ctx.fillText('Tap / Space to launch  •  Esc to pause', w / 2, startY + 50 * verticalScale);
 
-  // Rocket Selector UI - clear with high contrast pill
-  const selectorY = startY + 95 * verticalScale;
-  
-  // Pill background
-  const pillW = 280 * verticalScale;
-  const pillH = 44 * verticalScale;
+  // Rocket carousel — preview all three variants with the selected one centered
+  const selectorY = startY + 110 * verticalScale;
+  const rocketTypes: ('aerospace' | 'classic' | 'stealth')[] = ['aerospace', 'classic', 'stealth'];
+  const currentIdx = rocketTypes.indexOf(rocketType);
+  const prevIdx = (currentIdx - 1 + rocketTypes.length) % rocketTypes.length;
+  const nextIdx = (currentIdx + 1) % rocketTypes.length;
+
+  const pillW = 340 * verticalScale;
+  const pillH = 104 * verticalScale;
+  const pillX = w / 2 - pillW / 2;
+  const pillY = selectorY - pillH / 2;
+  const sideOffset = 110 * verticalScale;
+
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(w / 2 - pillW / 2, selectorY - pillH / 2 - Math.round(5 * verticalScale), pillW, pillH, pillH / 2);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+  ctx.roundRect(pillX, pillY, pillW, pillH, 14);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Glow on arrows
+  // Side rocket previews (dimmed)
+  const drawPreview = (type: 'aerospace' | 'classic' | 'stealth', dx: number, scale: number, alpha: number) => {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(w / 2 + dx, selectorY - 6 * verticalScale);
+    ctx.scale(scale, scale);
+    drawRocketShip(ctx, time, type);
+    ctx.restore();
+  };
+
+  drawPreview(rocketTypes[prevIdx], -sideOffset, 0.95 * verticalScale, 0.35);
+  drawPreview(rocketTypes[nextIdx], sideOffset, 0.95 * verticalScale, 0.35);
+
+  // Selected rocket — larger, glowing, gentle bob
+  const bob = Math.sin(time * 0.0028) * 2;
+  ctx.save();
+  ctx.shadowColor = 'rgba(56, 189, 248, 0.55)';
+  ctx.shadowBlur = 22;
+  ctx.translate(w / 2, selectorY - 6 * verticalScale + bob);
+  ctx.scale(1.7 * verticalScale, 1.7 * verticalScale);
+  drawRocketShip(ctx, time, rocketType);
+  ctx.restore();
+
+  // Navigation arrows
   ctx.shadowColor = '#38bdf8';
-  ctx.shadowBlur = 10;
-  ctx.font = `600 ${Math.round(15 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.shadowBlur = 8;
+  ctx.font = `600 ${Math.round(16 * verticalScale)}px "Inter", system-ui, sans-serif`;
   ctx.fillStyle = '#e0f2fe';
-  ctx.fillText('◀', w / 2 - 110 * verticalScale, selectorY);
-  ctx.fillText('▶', w / 2 + 110 * verticalScale, selectorY);
-  
-  // Current selection text
+  ctx.textAlign = 'center';
+  ctx.fillText('◀', pillX + 18 * verticalScale, selectorY + 5);
+  ctx.fillText('▶', pillX + pillW - 18 * verticalScale, selectorY + 5);
+
+  // Name label below
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${Math.round(15 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.font = `800 ${Math.round(13 * verticalScale)}px "Inter", system-ui, sans-serif`;
   ctx.letterSpacing = '5px';
-  ctx.fillText(rocketType.toUpperCase(), w / 2, selectorY);
+  ctx.fillText(rocketType.toUpperCase(), w / 2, pillY + pillH + 20 * verticalScale);
   ctx.letterSpacing = '0px';
   ctx.restore();
 
@@ -1431,9 +1727,13 @@ export function renderGameOver(
   deathReason: GameState['deathReason'],
   highScore: number,
   isNew: boolean,
-  isCopied: boolean
+  isCopied: boolean,
+  isRetryHover: boolean = false,
+  isShareHover: boolean = false,
+  tipSeed: number = 0,
+  closeCalls: number = 0
 ) {
-  const deathFeedback = getDeathFeedback(deathReason);
+  const deathFeedback = getDeathFeedback(deathReason, tipSeed);
 
   // Dark overlay with vignette
   ctx.fillStyle = 'rgba(4, 6, 15, 0.85)';
@@ -1612,49 +1912,69 @@ export function renderGameOver(
     ctx.letterSpacing = '0px';
   }
 
-  // Retry CTA below card
+  // Retry CTA below card — pill button, brightens on hover (desktop only)
+  const retryBtn = getRetryButtonBounds(w, h);
   ctx.save();
-  ctx.shadowColor = 'rgba(56,189,248,0.5)';
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = '800 18px "Inter", system-ui, sans-serif';
-  ctx.letterSpacing = '4px';
+  ctx.beginPath();
+  ctx.roundRect(retryBtn.x, retryBtn.y, retryBtn.width, retryBtn.height, retryBtn.height / 2);
+  ctx.fillStyle = isRetryHover ? 'rgba(56, 189, 248, 0.22)' : 'rgba(56, 189, 248, 0.08)';
+  ctx.fill();
+  ctx.strokeStyle = isRetryHover ? 'rgba(56, 189, 248, 0.75)' : 'rgba(56, 189, 248, 0.3)';
+  ctx.lineWidth = isRetryHover ? 1.5 : 1;
+  ctx.stroke();
+
+  ctx.shadowColor = 'rgba(56,189,248,0.6)';
+  ctx.shadowBlur = isRetryHover ? 24 : 12;
+  ctx.fillStyle = isRetryHover ? '#bae6fd' : '#38bdf8';
+  ctx.font = '800 16px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '3px';
   ctx.textAlign = 'center';
-  ctx.fillText('TAP TO RETRY', w / 2, cardY + cardH + 48);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RETRY', retryBtn.x + retryBtn.width / 2, retryBtn.y + retryBtn.height / 2);
+  ctx.textBaseline = 'alphabetic';
   ctx.restore();
   ctx.letterSpacing = '0px';
 
-  // Share Score button
-  const shareBtnW = GAME_OVER_LAYOUT.shareButtonWidth;
-  const shareBtnH = GAME_OVER_LAYOUT.shareButtonHeight;
-  const shareBtnX = (w - shareBtnW) / 2;
-  const shareBtnY = cardY + cardH + GAME_OVER_LAYOUT.shareButtonYOffset;
+  // Share button — right side of the button row, hover brightens on desktop
+  const share = getShareButtonBounds(w, h);
+  ctx.save();
   ctx.beginPath();
-  ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 8);
-  
+  ctx.roundRect(share.x, share.y, share.width, share.height, share.height / 2);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const btnTextY = share.y + share.height / 2;
+  const btnTextX = share.x + share.width / 2;
+
   if (isCopied) {
-    ctx.fillStyle = 'rgba(52,211,153,0.15)';
+    ctx.fillStyle = isShareHover ? 'rgba(52,211,153,0.28)' : 'rgba(52,211,153,0.15)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(52,211,153,0.4)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isShareHover ? 'rgba(52,211,153,0.7)' : 'rgba(52,211,153,0.4)';
+    ctx.lineWidth = isShareHover ? 1.5 : 1;
     ctx.stroke();
+    ctx.shadowColor = 'rgba(52,211,153,0.5)';
+    ctx.shadowBlur = isShareHover ? 18 : 0;
     ctx.font = '700 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
-    ctx.fillStyle = '#34d399';
-    ctx.fillText('✓ CARD COPIED', w / 2, shareBtnY + 23);
+    ctx.fillStyle = isShareHover ? '#a7f3d0' : '#34d399';
+    ctx.fillText('✓  COPIED', btnTextX, btnTextY);
     ctx.letterSpacing = '0px';
   } else {
-    ctx.fillStyle = 'rgba(56,189,248,0.12)';
+    ctx.fillStyle = isShareHover ? 'rgba(56,189,248,0.22)' : 'rgba(56,189,248,0.12)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(56,189,248,0.3)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isShareHover ? 'rgba(56,189,248,0.6)' : 'rgba(56,189,248,0.3)';
+    ctx.lineWidth = isShareHover ? 1.5 : 1;
     ctx.stroke();
+    ctx.shadowColor = 'rgba(56,189,248,0.5)';
+    ctx.shadowBlur = isShareHover ? 18 : 0;
     ctx.font = '600 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
-    ctx.fillStyle = '#7dd3fc';
-    ctx.fillText('📋 COPY RUN CARD', w / 2, shareBtnY + 23);
+    ctx.fillStyle = isShareHover ? '#bae6fd' : '#7dd3fc';
+    ctx.fillText('COPY RUN CARD', btnTextX, btnTextY);
     ctx.letterSpacing = '0px';
   }
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
 }
 
 export function renderPause(
@@ -1669,7 +1989,7 @@ export function renderPause(
 
   // Card
   const cardW = Math.min(320, w * 0.85);
-  const cardH = 280;
+  const cardH = 320;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 - 20;
   ctx.beginPath();
@@ -1691,6 +2011,53 @@ export function renderPause(
   ctx.fillText('PAUSED', w / 2, cardY + 45);
   ctx.restore();
 
+  // Mute toggle — circular button top-right of the card
+  const mb = getMuteButtonGeom(w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(mb.cx, mb.cy, mb.r, 0, Math.PI * 2);
+  ctx.fillStyle = state.settings.muted
+    ? 'rgba(251, 113, 133, 0.18)'
+    : 'rgba(56, 189, 248, 0.15)';
+  ctx.fill();
+  ctx.strokeStyle = state.settings.muted
+    ? 'rgba(251, 113, 133, 0.5)'
+    : 'rgba(56, 189, 248, 0.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Speaker glyph
+  const sx = mb.cx - 4;
+  const sy = mb.cy;
+  ctx.fillStyle = state.settings.muted ? '#fb7185' : '#7dd3fc';
+  ctx.beginPath();
+  ctx.moveTo(sx - 4, sy - 3);
+  ctx.lineTo(sx, sy - 3);
+  ctx.lineTo(sx + 4, sy - 6);
+  ctx.lineTo(sx + 4, sy + 6);
+  ctx.lineTo(sx, sy + 3);
+  ctx.lineTo(sx - 4, sy + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = state.settings.muted ? '#fb7185' : '#7dd3fc';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  if (state.settings.muted) {
+    // Slash through the speaker
+    ctx.beginPath();
+    ctx.moveTo(mb.cx - 7, mb.cy - 7);
+    ctx.lineTo(mb.cx + 7, mb.cy + 7);
+    ctx.stroke();
+  } else {
+    // Sound waves
+    ctx.beginPath();
+    ctx.arc(sx + 5, sy, 3, -Math.PI / 4, Math.PI / 4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(sx + 5, sy, 6, -Math.PI / 4, Math.PI / 4);
+    ctx.stroke();
+  }
+  ctx.restore();
+
   // Divider
   const divGrad = ctx.createLinearGradient(w / 2 - 40, 0, w / 2 + 40, 0);
   divGrad.addColorStop(0, 'rgba(56,189,248,0)');
@@ -1703,6 +2070,11 @@ export function renderPause(
   const sliderX = cardX + 30;
   const sliderW = cardW - 60;
   const settings = state.settings;
+
+  // Visual dim when muted — sliders still show their values but faded
+  const sliderOpacity = settings.muted ? 0.35 : 1;
+  ctx.save();
+  ctx.globalAlpha = sliderOpacity;
 
   // Music volume
   ctx.textAlign = 'left';
@@ -1733,19 +2105,33 @@ export function renderPause(
   ctx.fillStyle = '#38bdf8';
   ctx.fill();
 
+  ctx.restore();
+  ctx.textAlign = 'left';
+
   // Low Graphics toggle
   ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
   ctx.fillText('Low Graphics', sliderX, cardY + 185);
-  // Toggle box
   const toggleX = sliderX + sliderW - 40;
   const toggleY = cardY + 174;
   ctx.beginPath();
   ctx.roundRect(toggleX, toggleY, 40, 20, 10);
   ctx.fillStyle = settings.lowGraphics ? 'rgba(52,211,153,0.6)' : 'rgba(56,189,248,0.15)';
   ctx.fill();
-  // Toggle knob
   ctx.beginPath();
   ctx.arc(settings.lowGraphics ? toggleX + 28 : toggleX + 12, toggleY + 10, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // Reduced Motion toggle
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+  ctx.fillText('Reduced Motion', sliderX, cardY + 225);
+  const rmToggleY = cardY + 214;
+  ctx.beginPath();
+  ctx.roundRect(toggleX, rmToggleY, 40, 20, 10);
+  ctx.fillStyle = settings.reducedMotion ? 'rgba(52,211,153,0.6)' : 'rgba(56,189,248,0.15)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(settings.reducedMotion ? toggleX + 28 : toggleX + 12, rmToggleY + 10, 7, 0, Math.PI * 2);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
