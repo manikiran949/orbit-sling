@@ -1625,16 +1625,16 @@ export function renderMenu(
     ctx.restore();
   };
 
-  drawPreview(rocketTypes[prevIdx], -sideOffset, 0.6 * verticalScale, 0.35);
-  drawPreview(rocketTypes[nextIdx], sideOffset, 0.6 * verticalScale, 0.35);
+  drawPreview(rocketTypes[prevIdx], -sideOffset, 0.95 * verticalScale, 0.35);
+  drawPreview(rocketTypes[nextIdx], sideOffset, 0.95 * verticalScale, 0.35);
 
   // Selected rocket — larger, glowing, gentle bob
   const bob = Math.sin(time * 0.0028) * 2;
   ctx.save();
   ctx.shadowColor = 'rgba(56, 189, 248, 0.55)';
-  ctx.shadowBlur = 18;
+  ctx.shadowBlur = 22;
   ctx.translate(w / 2, selectorY - 6 * verticalScale + bob);
-  ctx.scale(1.05 * verticalScale, 1.05 * verticalScale);
+  ctx.scale(1.7 * verticalScale, 1.7 * verticalScale);
   drawRocketShip(ctx, time, rocketType);
   ctx.restore();
 
