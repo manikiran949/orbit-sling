@@ -1153,24 +1153,72 @@ export function render(
   ctx.fillText(`${state.highScore}`, w - 26, 58);
   ctx.restore();
 
-  // Combo HUD
-  if (state.combo > 1) {
+  // Combo meter HUD — visible whenever a combo window is open
+  if (state.comboTimer > 0) {
+    const progress = Math.max(0, Math.min(1, state.comboTimer / 120));
+    const mult = state.comboMultiplier;
+    const isMax = mult >= 5;
+    const fadeIn = Math.min(1, (120 - state.comboTimer) / 6 + 0.35);
+    const fadeOut = Math.min(1, state.comboTimer / 20);
+    const alpha = Math.min(fadeIn, fadeOut);
+
+    const cmW = 184;
+    const cmH = 56;
+    const cmX = w / 2 - cmW / 2;
+    const cmY = 14;
+
     ctx.save();
-    const comboAlpha = Math.min(1, state.comboTimer / 30);
-    ctx.globalAlpha = comboAlpha;
-    ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(251,191,36,0.5)';
-    ctx.shadowBlur = 10;
+    ctx.globalAlpha = alpha;
+
+    ctx.beginPath();
+    ctx.roundRect(cmX, cmY, cmW, cmH, 10);
+    ctx.fillStyle = 'rgba(10, 14, 36, 0.55)';
+    ctx.fill();
+    ctx.strokeStyle = isMax ? 'rgba(251, 146, 60, 0.55)' : 'rgba(251, 191, 36, 0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Multiplier value
+    ctx.textAlign = 'left';
+    ctx.shadowColor = isMax ? 'rgba(251, 146, 60, 0.8)' : 'rgba(251, 191, 36, 0.6)';
+    ctx.shadowBlur = isMax ? 16 : 10;
     ctx.font = '800 22px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText(`x${state.combo} COMBO`, w / 2, 40);
-    // Timer bar
-    const barW = 80;
-    const barProg = state.comboTimer / 120;
-    ctx.fillStyle = 'rgba(251,191,36,0.15)';
-    ctx.fillRect(w / 2 - barW / 2, 48, barW, 4);
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(w / 2 - barW / 2, 48, barW * barProg, 4);
+    ctx.fillStyle = isMax ? '#fb923c' : '#fbbf24';
+    ctx.fillText(`×${mult.toFixed(1)}`, cmX + 14, cmY + 28);
+
+    ctx.shadowBlur = 0;
+    ctx.font = '600 10px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = isMax ? '#fb923c' : 'rgba(253, 230, 138, 0.8)';
+    ctx.fillText(isMax ? 'MAX COMBO' : `COMBO ×${state.combo}`, cmX + 14, cmY + 44);
+    ctx.letterSpacing = '0px';
+
+    // "Next capture" hint on right side
+    ctx.textAlign = 'right';
+    ctx.font = '500 10px "Inter", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+    ctx.letterSpacing = '1px';
+    ctx.fillText('CHAIN', cmX + cmW - 14, cmY + 20);
+    ctx.letterSpacing = '0px';
+    ctx.font = '700 16px "Inter", system-ui, sans-serif';
+    const nextMult = Math.min(5, 1 + (state.combo + 1) * 0.5);
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillText(`×${nextMult.toFixed(1)}`, cmX + cmW - 14, cmY + 38);
+
+    // Progress bar — color shifts to red as time runs low
+    const barX = cmX + 14;
+    const barY = cmY + cmH - 8;
+    const barW = cmW - 28;
+    const barH = 4;
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.12)';
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, barW, barH, 2);
+    ctx.fill();
+    const barColor = progress < 0.25 ? '#fb7185' : isMax ? '#fb923c' : '#fbbf24';
+    ctx.fillStyle = barColor;
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, Math.max(1, barW * progress), barH, 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -1379,36 +1427,67 @@ export function renderMenu(
   ctx.letterSpacing = '1px';
   ctx.fillText('Tap / Space to launch  •  Esc to pause', w / 2, startY + 50 * verticalScale);
 
-  // Rocket Selector UI - clear with high contrast pill
-  const selectorY = startY + 95 * verticalScale;
-  
-  // Pill background
-  const pillW = 280 * verticalScale;
-  const pillH = 44 * verticalScale;
+  // Rocket carousel — preview all three variants with the selected one centered
+  const selectorY = startY + 110 * verticalScale;
+  const rocketTypes: ('aerospace' | 'classic' | 'stealth')[] = ['aerospace', 'classic', 'stealth'];
+  const currentIdx = rocketTypes.indexOf(rocketType);
+  const prevIdx = (currentIdx - 1 + rocketTypes.length) % rocketTypes.length;
+  const nextIdx = (currentIdx + 1) % rocketTypes.length;
+
+  const pillW = 340 * verticalScale;
+  const pillH = 104 * verticalScale;
+  const pillX = w / 2 - pillW / 2;
+  const pillY = selectorY - pillH / 2;
+  const sideOffset = 110 * verticalScale;
+
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(w / 2 - pillW / 2, selectorY - pillH / 2 - Math.round(5 * verticalScale), pillW, pillH, pillH / 2);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+  ctx.roundRect(pillX, pillY, pillW, pillH, 14);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Glow on arrows
+  // Side rocket previews (dimmed)
+  const drawPreview = (type: 'aerospace' | 'classic' | 'stealth', dx: number, scale: number, alpha: number) => {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(w / 2 + dx, selectorY - 6 * verticalScale);
+    ctx.scale(scale, scale);
+    drawRocketShip(ctx, time, type);
+    ctx.restore();
+  };
+
+  drawPreview(rocketTypes[prevIdx], -sideOffset, 0.6 * verticalScale, 0.35);
+  drawPreview(rocketTypes[nextIdx], sideOffset, 0.6 * verticalScale, 0.35);
+
+  // Selected rocket — larger, glowing, gentle bob
+  const bob = Math.sin(time * 0.0028) * 2;
+  ctx.save();
+  ctx.shadowColor = 'rgba(56, 189, 248, 0.55)';
+  ctx.shadowBlur = 18;
+  ctx.translate(w / 2, selectorY - 6 * verticalScale + bob);
+  ctx.scale(1.05 * verticalScale, 1.05 * verticalScale);
+  drawRocketShip(ctx, time, rocketType);
+  ctx.restore();
+
+  // Navigation arrows
   ctx.shadowColor = '#38bdf8';
-  ctx.shadowBlur = 10;
-  ctx.font = `600 ${Math.round(15 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.shadowBlur = 8;
+  ctx.font = `600 ${Math.round(16 * verticalScale)}px "Inter", system-ui, sans-serif`;
   ctx.fillStyle = '#e0f2fe';
-  ctx.fillText('◀', w / 2 - 110 * verticalScale, selectorY);
-  ctx.fillText('▶', w / 2 + 110 * verticalScale, selectorY);
-  
-  // Current selection text
+  ctx.textAlign = 'center';
+  ctx.fillText('◀', pillX + 18 * verticalScale, selectorY + 5);
+  ctx.fillText('▶', pillX + pillW - 18 * verticalScale, selectorY + 5);
+
+  // Name label below
   ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${Math.round(15 * verticalScale)}px "Inter", system-ui, sans-serif`;
+  ctx.font = `800 ${Math.round(13 * verticalScale)}px "Inter", system-ui, sans-serif`;
   ctx.letterSpacing = '5px';
-  ctx.fillText(rocketType.toUpperCase(), w / 2, selectorY);
+  ctx.fillText(rocketType.toUpperCase(), w / 2, pillY + pillH + 20 * verticalScale);
   ctx.letterSpacing = '0px';
   ctx.restore();
 

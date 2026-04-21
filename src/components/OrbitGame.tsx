@@ -14,6 +14,12 @@ const OrbitGame = () => {
   const audioInitRef = useRef(false);
   const draggingRef = useRef<PauseSliderTarget | null>(null);
   const shareFlashRef = useRef(0);
+  const gameOverStartRef = useRef<number>(-1);
+  const countUpTickRef = useRef<number>(0);
+  const gameOverWasNewHighRef = useRef<boolean>(false);
+
+  const COUNT_UP_DURATION_MS = 1500;
+  const COUNT_UP_TICK_MS = 200;
 
   const initAudio = useCallback(() => {
     if (audioInitRef.current) return;
@@ -82,35 +88,35 @@ const OrbitGame = () => {
         const my = e.clientY - rect.top;
         const w = window.innerWidth;
         const h = window.innerHeight;
-        
+
         const py = h / 2 + 10;
         const verticalScale = Math.max(0.85, Math.min(1.1, h / 800));
-        const selectorY = py + 250 * verticalScale;
-        
-        // Tap targets for rocket selection
-        const leftTargetX = w / 2 - 110 * verticalScale;
-        const rightTargetX = w / 2 + 110 * verticalScale;
-        const targetRadius = 40; // generous touch target
+        const startY = py + 160 * verticalScale;
+        const selectorY = startY + 110 * verticalScale;
+        const pillW = 340 * verticalScale;
+        const pillH = 104 * verticalScale;
+        const pillX = w / 2 - pillW / 2;
+        const pillY = selectorY - pillH / 2;
 
-        if (Math.abs(my - selectorY) < targetRadius) {
+        // Tap anywhere inside the carousel pill to rotate the selection.
+        // Left half → previous, right half → next.
+        if (mx >= pillX && mx <= pillX + pillW && my >= pillY && my <= pillY + pillH) {
           const types: ('aerospace' | 'classic' | 'stealth')[] = ['aerospace', 'classic', 'stealth'];
           let currentIdx = types.indexOf(state.settings.rocketType || 'aerospace');
-          
-          if (Math.abs(mx - leftTargetX) < targetRadius) {
+          const deadZone = 30 * verticalScale; // center rocket passes through so tap-to-start still works? no — center also rotates next
+          if (mx < w / 2 - deadZone) {
             currentIdx = (currentIdx - 1 + types.length) % types.length;
-            state.settings.rocketType = types[currentIdx];
-            saveSettings(state.settings);
-            audio.playClick();
-            updateVisualsOnly(state);
-            return;
-          } else if (Math.abs(mx - rightTargetX) < targetRadius) {
+          } else if (mx > w / 2 + deadZone) {
             currentIdx = (currentIdx + 1) % types.length;
-            state.settings.rocketType = types[currentIdx];
-            saveSettings(state.settings);
-            audio.playClick();
-            updateVisualsOnly(state);
-            return;
+          } else {
+            // Tap on the selected rocket — cycle forward for quick browsing
+            currentIdx = (currentIdx + 1) % types.length;
           }
+          state.settings.rocketType = types[currentIdx];
+          saveSettings(state.settings);
+          audio.playClick();
+          updateVisualsOnly(state);
+          return;
         }
       }
 
@@ -325,11 +331,45 @@ const OrbitGame = () => {
 
     let prevOrbiting = false;
 
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const computeAnimScores = (state: GameState, time: number) => {
+      if (gameOverStartRef.current < 0) {
+        gameOverStartRef.current = time;
+        countUpTickRef.current = 0;
+      }
+      const elapsed = time - gameOverStartRef.current;
+      const raw = Math.max(0, Math.min(1, elapsed / COUNT_UP_DURATION_MS));
+      const t = easeOutCubic(raw);
+
+      const animScore = Math.floor(state.score * t);
+      const animDist = Math.floor(state.distanceMeters * t);
+      const animCombo = Math.floor(state.comboBonusEarned * t);
+      const animEarth = Math.floor(state.earthBonusEarned * t);
+
+      // Tick sound cadence while counting — respects SFX volume setting.
+      if (raw < 1 && state.settings.sfxVolume > 0 && state.score > 0) {
+        const tickIdx = Math.floor(elapsed / COUNT_UP_TICK_MS);
+        if (tickIdx > countUpTickRef.current) {
+          countUpTickRef.current = tickIdx;
+          audio.playClick();
+        }
+      }
+
+      return { animScore, animDist, animCombo, animEarth };
+    };
+
     const loop = (time: number) => {
       const state = stateRef.current;
       const w = window.innerWidth;
       const h = window.innerHeight;
       frameRef.current += 1;
+
+      if (state.phase !== 'gameover' && gameOverStartRef.current >= 0) {
+        gameOverStartRef.current = -1;
+        countUpTickRef.current = 0;
+        gameOverWasNewHighRef.current = false;
+      }
 
       if (state.phase === 'menu') {
         renderMenu(ctx, w, h, time, state.highScore, state.settings.rocketType || 'aerospace');
@@ -361,6 +401,9 @@ const OrbitGame = () => {
             state.phase = 'gameover';
             audio.playExplosion();
             audio.stopMusic();
+            gameOverStartRef.current = time;
+            countUpTickRef.current = 0;
+            gameOverWasNewHighRef.current = isNewHigh;
             if (isNewHigh) {
               state.highScore = state.score;
               localStorage.setItem('orbitHighScore', String(state.score));
@@ -369,38 +412,38 @@ const OrbitGame = () => {
           render(ctx, state, w, h, time);
           if (state.phase === 'gameover') {
             if (shareFlashRef.current > 0) shareFlashRef.current--;
+            const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
             renderGameOver(
               ctx,
               w,
               h,
-              state.score,
-              state.distanceMeters,
-              state.comboBonusEarned,
-              state.earthBonusEarned,
+              animScore,
+              animDist,
+              animCombo,
+              animEarth,
               state.deathReason,
               state.highScore,
-              isNewHigh,
+              gameOverWasNewHighRef.current,
               shareFlashRef.current > 0
             );
           }
         }
       } else {
-        // gameover phase — isNewHigh was captured when game ended
-        const isNewHigh = state.score > state.highScore;
         if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
+        const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
         renderGameOver(
           ctx,
           w,
           h,
-          state.score,
-          state.distanceMeters,
-          state.comboBonusEarned,
-          state.earthBonusEarned,
+          animScore,
+          animDist,
+          animCombo,
+          animEarth,
           state.deathReason,
           state.highScore,
-          isNewHigh,
+          gameOverWasNewHighRef.current,
           shareFlashRef.current > 0
         );
       }
