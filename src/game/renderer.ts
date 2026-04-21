@@ -1459,6 +1459,22 @@ export function render(
     ctx.restore();
   }
 
+  // Close-call flash — a brief amber pulse near the rocket area
+  if (state.closeCallTimer > 0) {
+    const fade = state.closeCallTimer / 24;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(251, 146, 60, 0.9)';
+    ctx.shadowBlur = 18;
+    ctx.font = '800 18px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '4px';
+    ctx.fillStyle = '#fb923c';
+    ctx.fillText('CLOSE CALL', w / 2, h * 0.22);
+    ctx.letterSpacing = '0px';
+    ctx.restore();
+  }
+
   // End screen shake save
   ctx.restore();
 }
@@ -1714,7 +1730,8 @@ export function renderGameOver(
   isCopied: boolean,
   isRetryHover: boolean = false,
   isShareHover: boolean = false,
-  tipSeed: number = 0
+  tipSeed: number = 0,
+  closeCalls: number = 0
 ) {
   const deathFeedback = getDeathFeedback(deathReason, tipSeed);
 

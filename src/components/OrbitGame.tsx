@@ -315,6 +315,7 @@ const OrbitGame = () => {
         return;
       }
 
+
       if (!isActionKey && !isPauseKey) return;
       if (e.repeat) return;
 
@@ -375,6 +376,7 @@ const OrbitGame = () => {
 
     let prevOrbiting = false;
     let prevThemeIdx = 0;
+    let prevCloseCalls = 0;
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -420,6 +422,9 @@ const OrbitGame = () => {
       if (prevThemeIdx > state.activeThemeIndex) {
         prevThemeIdx = state.activeThemeIndex;
       }
+      if (prevCloseCalls > state.closeCalls) {
+        prevCloseCalls = state.closeCalls;
+      }
 
       if (state.phase === 'menu') {
         renderMenu(ctx, w, h, time, state.highScore, state.settings.rocketType || 'aerospace');
@@ -453,6 +458,16 @@ const OrbitGame = () => {
             vibrate(HAPTIC.themeUnlock);
           }
           prevThemeIdx = state.activeThemeIndex;
+
+          // Close-call audio + haptic (fires when counter bumps)
+          if (state.closeCalls > prevCloseCalls) {
+            audio.playCloseCall();
+            vibrate(HAPTIC.capture);
+          }
+          prevCloseCalls = state.closeCalls;
+
+          // Music intensity tracks combo multiplier (1x..5x → 0..1)
+          audio.setMusicIntensity((state.comboMultiplier - 1) / 4);
 
           const isNewHigh = state.score > state.highScore;
           if (!alive) {
@@ -496,7 +511,8 @@ const OrbitGame = () => {
               shareFlashRef.current > 0,
               isRetryHover,
               isShareHover,
-              deathTipSeedRef.current
+              deathTipSeedRef.current,
+              state.closeCalls
             );
           }
         }
@@ -528,7 +544,8 @@ const OrbitGame = () => {
           shareFlashRef.current > 0,
           isRetryHover,
           isShareHover,
-          deathTipSeedRef.current
+          deathTipSeedRef.current,
+          state.closeCalls
         );
       }
 

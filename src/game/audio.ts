@@ -11,6 +11,7 @@ export class AudioManager {
   private musicVolume = 0.5;
   private sfxVolume = 0.7;
   private muted = false;
+  private masterMusicFilter: BiquadFilterNode | null = null;
 
   init() {
     if (this.ctx) return;
@@ -48,6 +49,39 @@ export class AudioManager {
   get isMuted() {
     return this.muted;
   }
+
+  /**
+   * Open the master music filter cutoff as combo intensity rises (0..1),
+   * brightening the ambient chord during streaks. Smoothed to avoid clicks.
+   */
+  setMusicIntensity(intensity: number) {
+    if (!this.masterMusicFilter || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(1, intensity));
+    const target = 800 + clamped * 1600; // 800Hz baseline up to 2400Hz
+    this.masterMusicFilter.frequency.setTargetAtTime(target, this.ctx.currentTime, 0.3);
+  }
+
+  /** Short tense rising swish for a near-miss with an asteroid. */
+  playCloseCall() {
+    const ctx = this.ensureCtx();
+    if (!this.sfxGain) return;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1400;
+    filter.Q.value = 1.5;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(filter).connect(gain).connect(this.sfxGain);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  }
+
 
   /** Short whoosh noise burst for releasing from orbit */
   playThrust() {
@@ -237,11 +271,13 @@ export class AudioManager {
     // Create a lush, spacey reverb
     const reverb = this.createReverb(ctx);
     
-    // Master filter to keep it warm and ambient
+    // Master filter to keep it warm and ambient. Stored on the instance so
+    // setMusicIntensity can open the cutoff when the player hits a combo.
     const masterFilter = ctx.createBiquadFilter();
     masterFilter.type = 'lowpass';
     masterFilter.frequency.value = 800;
-    
+    this.masterMusicFilter = masterFilter;
+
     masterFilter.connect(reverb);
     masterFilter.connect(this.musicGain); // Dry signal
     reverb.connect(this.musicGain);       // Wet signal (reverb)

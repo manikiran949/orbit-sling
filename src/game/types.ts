@@ -138,4 +138,7 @@ export interface GameState {
   activeThemeIndex: number;
   themeBannerTimer: number;
   themeBannerIndex: number;
+  closeCalls: number;
+  closeCallTimer: number;
+  closeCallCooldown: number;
 }

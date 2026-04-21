@@ -335,6 +335,9 @@ export function createInitialState(canvasH = 600): GameState {
     activeThemeIndex: 0,
     themeBannerTimer: 0,
     themeBannerIndex: 0,
+    closeCalls: 0,
+    closeCallTimer: 0,
+    closeCallCooldown: 0,
   };
 }
 
@@ -721,7 +724,17 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
       buildShareMessage(state);
       return false;
     }
+    // Close call — rocket squeaked past an asteroid without hitting it.
+    // Only count while in free flight (not orbiting) and with a brief
+    // cooldown so a single pass doesn't retrigger.
+    if (!state.isOrbiting && d < a.radius + 16 && state.closeCallCooldown === 0) {
+      state.closeCalls += 1;
+      state.closeCallTimer = 24;
+      state.closeCallCooldown = 30;
+    }
   }
+  if (state.closeCallTimer > 0) state.closeCallTimer -= 1;
+  if (state.closeCallCooldown > 0) state.closeCallCooldown -= 1;
 
   if (!state.isOrbiting && (r.y < -40 || r.y > canvasH + 40)) {
     state.deathReason = 'out-of-bounds';
@@ -764,6 +777,7 @@ export function buildShareMessage(state: GameState): void {
 
   if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
   if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
+  if (state.closeCalls > 0) lines.push(`😅 Close Calls: ${state.closeCalls}`);
 
   lines.push('');
   lines.push('Can you beat this run?');
