@@ -1547,12 +1547,7 @@ export function renderMenu(
     accentColor: '#b87a1c',
     hasRing: true,
     ringTilt: -0.22,
-    craters: [
-      { x: -16, y: -14, r: 9 },
-      { x: 18, y: 16, r: 8 },
-      { x: -8, y: 22, r: 6 },
-      { x: 10, y: -20, r: 5 },
-    ],
+    craters: [],
     rotation: time * 0.0004,
     planetType: 'gas',
     earthBonusClaimed: false,
