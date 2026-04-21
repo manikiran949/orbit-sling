@@ -53,7 +53,8 @@ const OrbitGame = () => {
     const h = window.innerHeight;
     const cardW = Math.min(320, w * 0.85);
     const cardX = (w - cardW) / 2;
-    const cardY = (h - 280) / 2 - 20;
+    // Keep in sync with renderPause card height and getMuteButtonGeom.
+    const cardY = (h - 320) / 2 - 20;
     const sliderX = cardX + 30;
     const sliderW = cardW - 60;
     const toggleX = sliderX + sliderW - 40;
@@ -181,9 +182,23 @@ const OrbitGame = () => {
         audio.playClick();
         return;
       }
-      // Low graphics toggle
+      // Low graphics toggle — clear in-flight particles so the density
+      // change is clean instead of popping mid-flight.
       if (mx >= toggleX && mx <= toggleX + 40 && my >= toggleY && my <= toggleY + 20) {
         state.settings.lowGraphics = !state.settings.lowGraphics;
+        state.particles = [];
+        audio.playClick();
+        saveSettings(state.settings);
+        return;
+      }
+
+      // Reduced Motion toggle — sits directly below Low Graphics
+      const rmToggleY = toggleY + 40;
+      if (mx >= toggleX && mx <= toggleX + 40 && my >= rmToggleY && my <= rmToggleY + 20) {
+        state.settings.reducedMotion = !state.settings.reducedMotion;
+        if (state.settings.reducedMotion) {
+          state.screenShake = { intensity: 0, duration: 0 };
+        }
         audio.playClick();
         saveSettings(state.settings);
         return;

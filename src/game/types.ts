@@ -75,6 +75,7 @@ export interface GameSettings {
   lowGraphics: boolean;
   rocketType: 'aerospace' | 'classic' | 'stealth';
   muted: boolean;
+  reducedMotion: boolean;
 }
 
 export interface ScreenShake {

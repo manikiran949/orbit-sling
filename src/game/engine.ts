@@ -60,6 +60,7 @@ function loadSettings(): GameSettings {
     lowGraphics: false,
     rocketType: 'aerospace',
     muted: false,
+    reducedMotion: false,
   };
   try {
     const s = localStorage.getItem('orbitSettings');

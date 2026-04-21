@@ -960,9 +960,9 @@ export function render(
 ) {
   const settings = state.settings;
   const rocketType = settings.rocketType || 'aerospace';
-  // Screen shake
+  // Screen shake — suppressed when the reduced-motion setting is on.
   ctx.save();
-  if (state.screenShake.duration > 0) {
+  if (state.screenShake.duration > 0 && !settings.reducedMotion) {
     // Fade out shake over the last 30 frames
     const fade = Math.min(1, state.screenShake.duration / 30);
     const si = state.screenShake.intensity * fade;
@@ -2094,16 +2094,27 @@ export function renderPause(
   // Low Graphics toggle
   ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
   ctx.fillText('Low Graphics', sliderX, cardY + 185);
-  // Toggle box
   const toggleX = sliderX + sliderW - 40;
   const toggleY = cardY + 174;
   ctx.beginPath();
   ctx.roundRect(toggleX, toggleY, 40, 20, 10);
   ctx.fillStyle = settings.lowGraphics ? 'rgba(52,211,153,0.6)' : 'rgba(56,189,248,0.15)';
   ctx.fill();
-  // Toggle knob
   ctx.beginPath();
   ctx.arc(settings.lowGraphics ? toggleX + 28 : toggleX + 12, toggleY + 10, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // Reduced Motion toggle
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
+  ctx.fillText('Reduced Motion', sliderX, cardY + 225);
+  const rmToggleY = cardY + 214;
+  ctx.beginPath();
+  ctx.roundRect(toggleX, rmToggleY, 40, 20, 10);
+  ctx.fillStyle = settings.reducedMotion ? 'rgba(52,211,153,0.6)' : 'rgba(56,189,248,0.15)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(settings.reducedMotion ? toggleX + 28 : toggleX + 12, rmToggleY + 10, 7, 0, Math.PI * 2);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
