@@ -260,6 +260,17 @@ const OrbitGame = () => {
       const isActionKey = code === 'Space' || code === 'Enter';
       const isPauseKey = key === 'escape' || key === 'p';
 
+      // Dev-only theme cheat — press T while playing to jump +500 score and
+      // trigger the next theme milestone. Stripped out of production builds.
+      if (import.meta.env.DEV && key === 't' && !e.repeat) {
+        const state = stateRef.current;
+        if (state.phase === 'playing' && !state.paused) {
+          state.distanceMeters += 500;
+          state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
+        }
+        return;
+      }
+
       if (!isActionKey && !isPauseKey) return;
       if (e.repeat) return;
 
@@ -330,6 +341,7 @@ const OrbitGame = () => {
     const ctx = canvas.getContext('2d')!;
 
     let prevOrbiting = false;
+    let prevThemeIdx = 0;
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -371,6 +383,11 @@ const OrbitGame = () => {
         gameOverWasNewHighRef.current = false;
       }
 
+      // If state was reset (retry), allow future milestone chimes to fire again.
+      if (prevThemeIdx > state.activeThemeIndex) {
+        prevThemeIdx = state.activeThemeIndex;
+      }
+
       if (state.phase === 'menu') {
         renderMenu(ctx, w, h, time, state.highScore, state.settings.rocketType || 'aerospace');
       } else if (state.phase === 'playing') {
@@ -395,6 +412,12 @@ const OrbitGame = () => {
             }
           }
           prevOrbiting = state.isOrbiting;
+
+          // Theme unlock chime
+          if (state.activeThemeIndex > prevThemeIdx) {
+            audio.playThemeUnlock();
+          }
+          prevThemeIdx = state.activeThemeIndex;
 
           const isNewHigh = state.score > state.highScore;
           if (!alive) {

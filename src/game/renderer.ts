@@ -1,11 +1,12 @@
 import { GameState, Planet } from './types';
+import { getActiveTheme, THEMES } from './themes';
 
 export const GAME_OVER_LAYOUT = {
   cardWidthMax: 300,
   cardHeight: 415,
   cardYOffset: -10,
-  shareButtonWidth: 160,
-  shareButtonHeight: 36,
+  shareButtonWidth: 200,
+  shareButtonHeight: 38,
   shareButtonYOffset: 55,
 } as const;
 
@@ -887,14 +888,15 @@ export function render(
   }
 
   const cx = state.camera.x;
+  const theme = getActiveTheme(state.score);
 
-  // Deep space background — rich multi-stop gradient
+  // Deep space background — theme-driven multi-stop gradient
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#020515');
-  bg.addColorStop(0.25, '#070d2a');
-  bg.addColorStop(0.5, '#0b1030');
-  bg.addColorStop(0.75, '#06091e');
-  bg.addColorStop(1, '#020410');
+  bg.addColorStop(0, theme.bgStops[0]);
+  bg.addColorStop(0.25, theme.bgStops[1]);
+  bg.addColorStop(0.5, theme.bgStops[2]);
+  bg.addColorStop(0.75, theme.bgStops[3]);
+  bg.addColorStop(1, theme.bgStops[4]);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
@@ -902,19 +904,21 @@ export function render(
   const dustY = h * 0.42;
   const dustH = h * 0.35;
   const dust = ctx.createRadialGradient(w * 0.5, dustY, 0, w * 0.5, dustY, w * 0.7);
-  dust.addColorStop(0, 'rgba(80, 70, 140, 0.04)');
-  dust.addColorStop(0.5, 'rgba(50, 60, 120, 0.025)');
+  dust.addColorStop(0, theme.dust);
+  dust.addColorStop(0.5, theme.dust.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.6})`));
   dust.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = dust;
   ctx.fillRect(0, dustY - dustH / 2, w, dustH);
 
-  // Nebulae — layered with multi-stop gradients for depth
-  for (const n of state.nebulae) {
+  // Nebulae — theme-tinted, layered with multi-stop gradients for depth
+  for (let ni = 0; ni < state.nebulae.length; ni++) {
+    const n = state.nebulae[ni];
     const nx = n.x - cx * 0.12;
     if (nx + n.radius < 0 || nx - n.radius > w) continue;
+    const tinted = theme.nebulaColors[ni % theme.nebulaColors.length];
     const ng = ctx.createRadialGradient(nx, n.y, 0, nx, n.y, n.radius);
-    ng.addColorStop(0, n.color);
-    ng.addColorStop(0.4, n.color.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.5})`));
+    ng.addColorStop(0, tinted);
+    ng.addColorStop(0.4, tinted.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.5})`));
     ng.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = ng;
     ctx.fillRect(nx - n.radius, n.y - n.radius, n.radius * 2, n.radius * 2);
@@ -1114,6 +1118,12 @@ export function render(
 
   ctx.restore();
 
+  // Theme vignette overlay — tints the whole scene without touching the HUD
+  if (theme.vignetteOverlay) {
+    ctx.fillStyle = theme.vignetteOverlay;
+    ctx.fillRect(0, 0, w, h);
+  }
+
   // HUD — glassmorphism score panel
   ctx.save();
   // Left panel bg
@@ -1153,8 +1163,8 @@ export function render(
   ctx.fillText(`${state.highScore}`, w - 26, 58);
   ctx.restore();
 
-  // Combo meter HUD — visible whenever a combo window is open
-  if (state.comboTimer > 0) {
+  // Combo meter HUD — only when a real multiplier is active (×1.5+)
+  if (state.combo > 1 && state.comboTimer > 0) {
     const progress = Math.max(0, Math.min(1, state.comboTimer / 120));
     const mult = state.comboMultiplier;
     const isMax = mult >= 5;
@@ -1250,6 +1260,82 @@ export function render(
       ctx.fillText('COMBO BONUS!', w / 2, bonusY + 18);
     }
 
+    ctx.restore();
+  }
+
+  // Theme-unlock banner — fades in, holds, fades out over ~3s
+  if (state.themeBannerTimer > 0) {
+    const banner = THEMES[state.themeBannerIndex];
+    const MAX = 180;
+    const progress = 1 - state.themeBannerTimer / MAX; // 0 → 1 over lifetime
+    let alpha = 1;
+    if (progress < 0.12) alpha = progress / 0.12;
+    else if (progress > 0.82) alpha = Math.max(0, (1 - progress) / 0.18);
+
+    const bw = 300;
+    const bh = 76;
+    const bx = w / 2 - bw / 2;
+    const by = h * 0.16;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Panel
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 12);
+    ctx.fillStyle = 'rgba(10, 14, 36, 0.75)';
+    ctx.fill();
+    ctx.strokeStyle = banner.accentColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Accent bar on the left edge
+    ctx.fillStyle = banner.accentColor;
+    ctx.fillRect(bx, by + 10, 3, bh - 20);
+
+    // Kicker
+    ctx.textAlign = 'left';
+    ctx.font = '600 10px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '3px';
+    ctx.fillStyle = banner.accentColor;
+    ctx.fillText('NEW BIOME UNLOCKED', bx + 18, by + 22);
+
+    // Theme name (glowing)
+    ctx.shadowColor = banner.accentColor;
+    ctx.shadowBlur = 14;
+    ctx.font = '800 20px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(banner.name.toUpperCase(), bx + 18, by + 44);
+    ctx.shadowBlur = 0;
+
+    // Tagline below name
+    ctx.font = '400 11px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.6)';
+    ctx.fillText(banner.tagline, bx + 18, by + 62);
+
+    // Distance marker on the right
+    ctx.textAlign = 'right';
+    ctx.font = '700 14px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+    ctx.fillText(`${banner.startDistance}m`, bx + bw - 18, by + 40);
+
+    ctx.letterSpacing = '0px';
+    ctx.restore();
+  }
+
+  // Subtle theme tag in the HUD — small pill under the score panel
+  {
+    const activeTheme = THEMES[state.activeThemeIndex];
+    ctx.save();
+    ctx.font = '600 9px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1.5px';
+    ctx.fillStyle = activeTheme.accentColor;
+    ctx.globalAlpha = 0.75;
+    ctx.textAlign = 'left';
+    ctx.fillText(activeTheme.name.toUpperCase(), 26, 82);
     ctx.restore();
   }
 
@@ -1709,8 +1795,12 @@ export function renderGameOver(
   const shareBtnX = (w - shareBtnW) / 2;
   const shareBtnY = cardY + cardH + GAME_OVER_LAYOUT.shareButtonYOffset;
   ctx.beginPath();
-  ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 8);
-  
+  ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 10);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const btnTextY = shareBtnY + shareBtnH / 2;
+
   if (isCopied) {
     ctx.fillStyle = 'rgba(52,211,153,0.15)';
     ctx.fill();
@@ -1720,7 +1810,7 @@ export function renderGameOver(
     ctx.font = '700 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
     ctx.fillStyle = '#34d399';
-    ctx.fillText('✓ CARD COPIED', w / 2, shareBtnY + 23);
+    ctx.fillText('✓  CARD COPIED', w / 2, btnTextY);
     ctx.letterSpacing = '0px';
   } else {
     ctx.fillStyle = 'rgba(56,189,248,0.12)';
@@ -1731,9 +1821,10 @@ export function renderGameOver(
     ctx.font = '600 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
     ctx.fillStyle = '#7dd3fc';
-    ctx.fillText('📋 COPY RUN CARD', w / 2, shareBtnY + 23);
+    ctx.fillText('COPY RUN CARD', w / 2, btnTextY);
     ctx.letterSpacing = '0px';
   }
+  ctx.textBaseline = 'alphabetic';
 }
 
 export function renderPause(

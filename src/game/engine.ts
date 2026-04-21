@@ -1,4 +1,5 @@
 import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings } from './types';
+import { getThemeIndex } from './themes';
 
 const ROCKET_SPEED = 4.2;
 const ORBIT_SPEED = 0.05;
@@ -145,7 +146,7 @@ function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
   };
 }
 
-function generateAsteroid(minX: number, planets: Planet[], canvasH = 600): Asteroid {
+function generateAsteroid(minX: number, planets: Planet[], canvasH = 600): Asteroid | null {
   const radius = rand(8, 16);
   const verts: number[] = [];
   const n = Math.floor(rand(6, 9));
@@ -153,37 +154,41 @@ function generateAsteroid(minX: number, planets: Planet[], canvasH = 600): Aster
     verts.push(radius * rand(0.7, 1.3));
   }
 
-  // Try up to 10 times to find a position that doesn't overlap any orbit path
+  // Reject any position within the entire orbit sphere (+ clearance) of any planet.
+  // Previously we only rejected spots near the orbit ring, which let asteroids
+  // land inside the orbit zone — the rocket's spiral-in path would then collide.
+  const clearance = 20;
   let x = 0, y = 0;
-  const clearance = 25; // min distance from any orbit ring
-  for (let attempt = 0; attempt < 10; attempt++) {
-    x = minX + rand(150, 350);
-    y = rand(80, Math.max(520, canvasH - 80));
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const xRangeHi = 350 + attempt * 20; // progressively widen search window
+    x = minX + rand(150, xRangeHi);
+    y = rand(70, Math.max(530, canvasH - 70));
+
     let overlaps = false;
     for (const p of planets) {
+      // Coarse x prune: planets far ahead can't overlap this asteroid.
+      if (Math.abs(p.x - x) > p.orbitRadius + radius + clearance + 40) continue;
       const dist = Math.hypot(x - p.x, y - p.y);
-      // Check if asteroid sits on the orbit ring (too close to orbitRadius)
-      if (Math.abs(dist - p.orbitRadius) < radius + clearance) {
-        overlaps = true;
-        break;
-      }
-      // Also avoid being inside the planet itself
-      if (dist < p.radius + radius + 10) {
+      if (dist < p.orbitRadius + radius + clearance) {
         overlaps = true;
         break;
       }
     }
-    if (!overlaps) break;
+    if (!overlaps) {
+      return {
+        x,
+        y,
+        radius,
+        rotation: Math.random() * Math.PI * 2,
+        vertices: verts,
+        spin: rand(-0.02, 0.02),
+      };
+    }
   }
 
-  return {
-    x,
-    y,
-    radius,
-    rotation: Math.random() * Math.PI * 2,
-    vertices: verts,
-    spin: rand(-0.02, 0.02),
-  };
+  // Couldn't find a safe spot after many tries — skip this asteroid rather
+  // than placing it on a planet's orbit.
+  return null;
 }
 
 function generateStars(): Star[] {
@@ -264,7 +269,8 @@ export function createInitialState(canvasH = 600): GameState {
   const asteroids: Asteroid[] = [];
   // Fewer/farther asteroids early
   for (let i = 0; i < 4; i++) {
-    asteroids.push(generateAsteroid(800 + i * 600, planets, canvasH));
+    const a = generateAsteroid(800 + i * 600, planets, canvasH);
+    if (a) asteroids.push(a);
   }
 
   const firstPlanet = planets[0];
@@ -318,6 +324,9 @@ export function createInitialState(canvasH = 600): GameState {
     shareMessage: '',
     deathReason: '',
     showTutorial: !localStorage.getItem('orbitTutorialSeen'),
+    activeThemeIndex: 0,
+    themeBannerTimer: 0,
+    themeBannerIndex: 0,
   };
 }
 
@@ -633,6 +642,17 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   state.distanceMeters = Math.max(state.distanceMeters, Math.floor(r.x / 10));
   state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
 
+  // Theme milestone detection — score-based so combo/Earth bonuses count.
+  const newThemeIdx = getThemeIndex(state.score);
+  if (newThemeIdx !== state.activeThemeIndex) {
+    state.activeThemeIndex = newThemeIdx;
+    if (newThemeIdx > 0) {
+      state.themeBannerIndex = newThemeIdx;
+      state.themeBannerTimer = 180; // ~3 seconds at 60fps
+    }
+  }
+  if (state.themeBannerTimer > 0) state.themeBannerTimer -= 1;
+
   const lastPlanet = state.planets[state.planets.length - 1];
   if (r.x > lastPlanet.x - canvasW * 1.5) {
     state.planets.push(generatePlanet(lastPlanet.x, state.difficulty, canvasH));
@@ -640,7 +660,8 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   const lastAsteroid = state.asteroids[state.asteroids.length - 1];
   if (lastAsteroid && r.x > lastAsteroid.x - canvasW * 1.5) {
     const gap = rand(400 - state.difficulty * 40, 700 - state.difficulty * 60);
-    state.asteroids.push(generateAsteroid(lastAsteroid.x + gap, state.planets, canvasH));
+    const a = generateAsteroid(lastAsteroid.x + gap, state.planets, canvasH);
+    if (a) state.asteroids.push(a);
   }
 
   // Generate solar flares at intervals

@@ -152,6 +152,38 @@ export class AudioManager {
     osc.stop(ctx.currentTime + 0.4);
   }
 
+  /** Shimmering ascending arpeggio for unlocking a new visual theme */
+  playThemeUnlock() {
+    const ctx = this.ensureCtx();
+    if (!this.sfxGain) return;
+    // A minor 7 arc: A4, C5, E5, G5, A5 — warm, cinematic
+    const notes = [440, 523, 659, 784, 880];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const gain = ctx.createGain();
+      const t = ctx.currentTime + i * 0.07;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.14, t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      // Subtle shimmer — slight detuned overtone
+      const shimmer = ctx.createOscillator();
+      shimmer.type = 'sine';
+      shimmer.frequency.value = freq * 2.01;
+      const shimmerGain = ctx.createGain();
+      shimmerGain.gain.setValueAtTime(0, t);
+      shimmerGain.gain.linearRampToValueAtTime(0.04, t + 0.03);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain).connect(this.sfxGain!);
+      shimmer.connect(shimmerGain).connect(this.sfxGain!);
+      osc.start(t);
+      shimmer.start(t);
+      osc.stop(t + 0.5);
+      shimmer.stop(t + 0.45);
+    });
+  }
+
   /** Combo escalation sound */
   playCombo(level: number) {
     const ctx = this.ensureCtx();

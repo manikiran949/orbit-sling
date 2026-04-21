@@ -133,4 +133,7 @@ export interface GameState {
   shareMessage: string;
   deathReason: DeathReason;
   showTutorial: boolean;
+  activeThemeIndex: number;
+  themeBannerTimer: number;
+  themeBannerIndex: number;
 }
