@@ -10,6 +10,7 @@ export class AudioManager {
   private musicPlaying = false;
   private musicVolume = 0.5;
   private sfxVolume = 0.7;
+  private muted = false;
 
   init() {
     if (this.ctx) return;
@@ -30,12 +31,22 @@ export class AudioManager {
 
   setMusicVolume(v: number) {
     this.musicVolume = v;
-    if (this.musicGain) this.musicGain.gain.value = v * 0.3;
+    if (this.musicGain) this.musicGain.gain.value = this.muted ? 0 : v * 0.3;
   }
 
   setSfxVolume(v: number) {
     this.sfxVolume = v;
-    if (this.sfxGain) this.sfxGain.gain.value = v;
+    if (this.sfxGain) this.sfxGain.gain.value = this.muted ? 0 : v;
+  }
+
+  setMuted(m: boolean) {
+    this.muted = m;
+    if (this.musicGain) this.musicGain.gain.value = m ? 0 : this.musicVolume * 0.3;
+    if (this.sfxGain) this.sfxGain.gain.value = m ? 0 : this.sfxVolume;
+  }
+
+  get isMuted() {
+    return this.muted;
   }
 
   /** Short whoosh noise burst for releasing from orbit */

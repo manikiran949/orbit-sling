@@ -1,8 +1,9 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { createInitialState, releaseRocket, update, togglePause, saveSettings, updateVisualsOnly } from '@/game/engine';
-import { render, renderMenu, renderGameOver, renderPause, GAME_OVER_LAYOUT } from '@/game/renderer';
+import { render, renderMenu, renderGameOver, renderPause, getPauseButtonCenter, getMuteButtonGeom, getRetryButtonBounds, getShareButtonBounds } from '@/game/renderer';
 import { GameState } from '@/game/types';
 import { audio } from '@/game/audio';
+import { vibrate, HAPTIC } from '@/game/haptics';
 
 type PauseSliderTarget = 'music' | 'sfx';
 
@@ -14,6 +15,7 @@ const OrbitGame = () => {
   const audioInitRef = useRef(false);
   const draggingRef = useRef<PauseSliderTarget | null>(null);
   const shareFlashRef = useRef(0);
+  const mousePosRef = useRef<{ x: number; y: number } | null>(null);
   const gameOverStartRef = useRef<number>(-1);
   const countUpTickRef = useRef<number>(0);
   const gameOverWasNewHighRef = useRef<boolean>(false);
@@ -28,6 +30,7 @@ const OrbitGame = () => {
     const s = stateRef.current.settings;
     audio.setMusicVolume(s.musicVolume);
     audio.setSfxVolume(s.sfxVolume);
+    audio.setMuted(s.muted);
   }, []);
 
   const resize = useCallback(() => {
@@ -130,27 +133,15 @@ const OrbitGame = () => {
       const canvas = canvasRef.current;
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
-        const clientX = e.clientX;
-        const clientY = e.clientY;
-        if (clientX !== undefined && clientY !== undefined) {
-          const mx = clientX - rect.left;
-          const my = clientY - rect.top;
-          const w = window.innerWidth;
-          const h = window.innerHeight;
-          const cardH = GAME_OVER_LAYOUT.cardHeight;
-          const cardY = (h - cardH) / 2 + GAME_OVER_LAYOUT.cardYOffset;
-          const shareBtnW = GAME_OVER_LAYOUT.shareButtonWidth;
-          const shareBtnH = GAME_OVER_LAYOUT.shareButtonHeight;
-          const shareBtnX = (w - shareBtnW) / 2;
-          const shareBtnY = cardY + cardH + GAME_OVER_LAYOUT.shareButtonYOffset;
-          if (mx >= shareBtnX && mx <= shareBtnX + shareBtnW && my >= shareBtnY && my <= shareBtnY + shareBtnH) {
-            navigator.clipboard.writeText(state.shareMessage).then(() => {
-              // Brief visual feedback — swap button text via state
-              shareFlashRef.current = 60;
-            }).catch(() => { /* clipboard failed silently */ });
-            audio.playClick();
-            return;
-          }
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const share = getShareButtonBounds(window.innerWidth, window.innerHeight);
+        if (mx >= share.x && mx <= share.x + share.width && my >= share.y && my <= share.y + share.height) {
+          navigator.clipboard.writeText(state.shareMessage).then(() => {
+            shareFlashRef.current = 60;
+          }).catch(() => { /* clipboard failed silently */ });
+          audio.playClick();
+          return;
         }
       }
       const hs = state.highScore;
@@ -197,9 +188,33 @@ const OrbitGame = () => {
         return;
       }
 
+      // Mute button (top-right of pause card)
+      const mb = getMuteButtonGeom(window.innerWidth, window.innerHeight);
+      if (Math.hypot(mx - mb.cx, my - mb.cy) <= mb.r + 4) {
+        state.settings.muted = !state.settings.muted;
+        audio.setMuted(state.settings.muted);
+        saveSettings(state.settings);
+        if (!state.settings.muted) audio.playClick();
+        return;
+      }
+
       togglePause(state);
       audio.playClick();
       return;
+    }
+
+    // Pause button hit-test (top-right HUD) — intercept before release
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const pb = getPauseButtonCenter(window.innerWidth);
+      if (Math.hypot(mx - pb.cx, my - pb.cy) <= pb.r + 6) {
+        togglePause(state);
+        audio.playClick();
+        return;
+      }
     }
 
     // Track previous orbit state for audio
@@ -207,10 +222,23 @@ const OrbitGame = () => {
     releaseRocket(state);
     if (wasOrbiting) {
       audio.playThrust();
+      vibrate(HAPTIC.release);
     }
   }, [applyPauseSliderValue, getPauseCardLayout, initAudio]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Track mouse position for hover effects (mouse only — touch has no hover)
+    if (e.pointerType === 'mouse') {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        mousePosRef.current = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        };
+      }
+    }
+
     const dragTarget = draggingRef.current;
     if (!dragTarget) return;
 
@@ -316,24 +344,13 @@ const OrbitGame = () => {
         releaseRocket(state);
         if (wasOrbiting) {
           audio.playThrust();
+          vibrate(HAPTIC.release);
         }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [initAudio]);
-
-  // Auto-pause when tab is hidden to avoid accidental deaths and timing jumps.
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      const state = stateRef.current;
-      if (document.hidden && state.phase === 'playing' && !state.paused) {
-        togglePause(state);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -400,6 +417,7 @@ const OrbitGame = () => {
           // Audio triggers
           if (state.isOrbiting && !prevOrbiting) {
             audio.playCapture();
+            vibrate(HAPTIC.capture);
             if (state.combo > 1) {
               audio.playCombo(state.combo);
             }
@@ -416,6 +434,7 @@ const OrbitGame = () => {
           // Theme unlock chime
           if (state.activeThemeIndex > prevThemeIdx) {
             audio.playThemeUnlock();
+            vibrate(HAPTIC.themeUnlock);
           }
           prevThemeIdx = state.activeThemeIndex;
 
@@ -423,6 +442,7 @@ const OrbitGame = () => {
           if (!alive) {
             state.phase = 'gameover';
             audio.playExplosion();
+            vibrate(HAPTIC.death);
             audio.stopMusic();
             gameOverStartRef.current = time;
             countUpTickRef.current = 0;
@@ -436,6 +456,11 @@ const OrbitGame = () => {
           if (state.phase === 'gameover') {
             if (shareFlashRef.current > 0) shareFlashRef.current--;
             const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
+            const retry = getRetryButtonBounds(w, h);
+            const mp = mousePosRef.current;
+            const isRetryHover =
+              !!mp && mp.x >= retry.x && mp.x <= retry.x + retry.width &&
+              mp.y >= retry.y && mp.y <= retry.y + retry.height;
             renderGameOver(
               ctx,
               w,
@@ -447,7 +472,8 @@ const OrbitGame = () => {
               state.deathReason,
               state.highScore,
               gameOverWasNewHighRef.current,
-              shareFlashRef.current > 0
+              shareFlashRef.current > 0,
+              isRetryHover
             );
           }
         }
@@ -456,6 +482,11 @@ const OrbitGame = () => {
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
         const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
+        const retry = getRetryButtonBounds(w, h);
+        const mp = mousePosRef.current;
+        const isRetryHover =
+          !!mp && mp.x >= retry.x && mp.x <= retry.x + retry.width &&
+          mp.y >= retry.y && mp.y <= retry.y + retry.height;
         renderGameOver(
           ctx,
           w,
@@ -467,7 +498,8 @@ const OrbitGame = () => {
           state.deathReason,
           state.highScore,
           gameOverWasNewHighRef.current,
-          shareFlashRef.current > 0
+          shareFlashRef.current > 0,
+          isRetryHover
         );
       }
 
@@ -486,6 +518,7 @@ const OrbitGame = () => {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onPointerLeave={() => { mousePosRef.current = null; }}
     />
   );
 };

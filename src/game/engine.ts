@@ -54,11 +54,18 @@ function lerpAngle(a: number, b: number, t: number): number {
 }
 
 function loadSettings(): GameSettings {
+  const defaults: GameSettings = {
+    musicVolume: 0.5,
+    sfxVolume: 0.7,
+    lowGraphics: false,
+    rocketType: 'aerospace',
+    muted: false,
+  };
   try {
     const s = localStorage.getItem('orbitSettings');
-    if (s) return JSON.parse(s);
+    if (s) return { ...defaults, ...JSON.parse(s) };
   } catch { /* ignore */ }
-  return { musicVolume: 0.5, sfxVolume: 0.7, lowGraphics: false, rocketType: 'aerospace' };
+  return defaults;
 }
 
 export function saveSettings(settings: GameSettings) {

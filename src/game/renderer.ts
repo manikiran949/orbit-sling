@@ -5,10 +5,60 @@ export const GAME_OVER_LAYOUT = {
   cardWidthMax: 300,
   cardHeight: 415,
   cardYOffset: -10,
-  shareButtonWidth: 200,
-  shareButtonHeight: 38,
-  shareButtonYOffset: 55,
+  // Buttons sit side-by-side below the card to keep the whole screen in view
+  // on shorter windows. Share is narrower / secondary; retry is primary.
+  buttonYOffset: 28,
+  buttonHeight: 42,
+  buttonGap: 12,
+  retryButtonWidth: 180,
+  shareButtonWidth: 160,
 } as const;
+
+export const PAUSE_BUTTON = {
+  r: 18,
+  offsetX: 32,
+  offsetY: 90,
+} as const;
+
+export function getPauseButtonCenter(w: number): { cx: number; cy: number; r: number } {
+  return { cx: w - PAUSE_BUTTON.offsetX, cy: PAUSE_BUTTON.offsetY, r: PAUSE_BUTTON.r };
+}
+
+function getButtonRowY(h: number): number {
+  const cardH = GAME_OVER_LAYOUT.cardHeight;
+  const cardY = (h - cardH) / 2 + GAME_OVER_LAYOUT.cardYOffset;
+  return cardY + cardH + GAME_OVER_LAYOUT.buttonYOffset;
+}
+
+export function getRetryButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
+  const width = GAME_OVER_LAYOUT.retryButtonWidth;
+  const totalW = width + GAME_OVER_LAYOUT.buttonGap + GAME_OVER_LAYOUT.shareButtonWidth;
+  return {
+    x: (w - totalW) / 2,
+    y: getButtonRowY(h),
+    width,
+    height: GAME_OVER_LAYOUT.buttonHeight,
+  };
+}
+
+export function getShareButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
+  const width = GAME_OVER_LAYOUT.shareButtonWidth;
+  const totalW = GAME_OVER_LAYOUT.retryButtonWidth + GAME_OVER_LAYOUT.buttonGap + width;
+  return {
+    x: (w - totalW) / 2 + GAME_OVER_LAYOUT.retryButtonWidth + GAME_OVER_LAYOUT.buttonGap,
+    y: getButtonRowY(h),
+    width,
+    height: GAME_OVER_LAYOUT.buttonHeight,
+  };
+}
+
+export function getMuteButtonGeom(w: number, h: number): { cx: number; cy: number; r: number } {
+  const cardW = Math.min(320, w * 0.85);
+  const cardH = 320;
+  const cardX = (w - cardW) / 2;
+  const cardY = (h - cardH) / 2 - 20;
+  return { cx: cardX + cardW - 32, cy: cardY + 45, r: 14 };
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -900,15 +950,20 @@ export function render(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
-  // Subtle cosmic dust band (horizontal milky-way feel)
-  const dustY = h * 0.42;
-  const dustH = h * 0.35;
-  const dust = ctx.createRadialGradient(w * 0.5, dustY, 0, w * 0.5, dustY, w * 0.7);
+  // Subtle cosmic dust band (milky-way feel) — elliptical gradient so it
+  // fades smoothly on both axes instead of hard-edging at a fillRect boundary.
+  const dustRY = h * 0.22;
+  const dustSX = (w * 0.55) / dustRY;
+  ctx.save();
+  ctx.translate(w * 0.5, h * 0.5);
+  ctx.scale(dustSX, 1);
+  const dust = ctx.createRadialGradient(0, 0, 0, 0, 0, dustRY);
   dust.addColorStop(0, theme.dust);
   dust.addColorStop(0.5, theme.dust.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.6})`));
   dust.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = dust;
-  ctx.fillRect(0, dustY - dustH / 2, w, dustH);
+  ctx.fillRect(-dustRY, -dustRY, dustRY * 2, dustRY * 2);
+  ctx.restore();
 
   // Nebulae — theme-tinted, layered with multi-stop gradients for depth
   for (let ni = 0; ni < state.nebulae.length; ni++) {
@@ -1162,6 +1217,31 @@ export function render(
   ctx.fillStyle = 'rgba(186, 230, 253, 0.75)';
   ctx.fillText(`${state.highScore}`, w - 26, 58);
   ctx.restore();
+
+  // On-screen pause button (top-right, below the BEST panel) — only while playing
+  if (state.phase === 'playing' && !state.paused) {
+    const pb = getPauseButtonCenter(w);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pb.cx, pb.cy, pb.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(10, 14, 36, 0.6)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Pause icon — two rounded bars
+    ctx.fillStyle = '#e0f2fe';
+    const barW = 3.5;
+    const barH = 14;
+    const barGap = 4;
+    ctx.beginPath();
+    ctx.roundRect(pb.cx - barGap / 2 - barW, pb.cy - barH / 2, barW, barH, 1);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(pb.cx + barGap / 2, pb.cy - barH / 2, barW, barH, 1);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Combo meter HUD — only when a real multiplier is active (×1.5+)
   if (state.combo > 1 && state.comboTimer > 0) {
@@ -1596,7 +1676,8 @@ export function renderGameOver(
   deathReason: GameState['deathReason'],
   highScore: number,
   isNew: boolean,
-  isCopied: boolean
+  isCopied: boolean,
+  isRetryHover: boolean = false
 ) {
   const deathFeedback = getDeathFeedback(deathReason);
 
@@ -1777,29 +1858,38 @@ export function renderGameOver(
     ctx.letterSpacing = '0px';
   }
 
-  // Retry CTA below card
+  // Retry CTA below card — pill button, brightens on hover (desktop only)
+  const retryBtn = getRetryButtonBounds(w, h);
   ctx.save();
-  ctx.shadowColor = 'rgba(56,189,248,0.5)';
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = '800 18px "Inter", system-ui, sans-serif';
-  ctx.letterSpacing = '4px';
+  ctx.beginPath();
+  ctx.roundRect(retryBtn.x, retryBtn.y, retryBtn.width, retryBtn.height, retryBtn.height / 2);
+  ctx.fillStyle = isRetryHover ? 'rgba(56, 189, 248, 0.22)' : 'rgba(56, 189, 248, 0.08)';
+  ctx.fill();
+  ctx.strokeStyle = isRetryHover ? 'rgba(56, 189, 248, 0.75)' : 'rgba(56, 189, 248, 0.3)';
+  ctx.lineWidth = isRetryHover ? 1.5 : 1;
+  ctx.stroke();
+
+  ctx.shadowColor = 'rgba(56,189,248,0.6)';
+  ctx.shadowBlur = isRetryHover ? 24 : 12;
+  ctx.fillStyle = isRetryHover ? '#bae6fd' : '#38bdf8';
+  ctx.font = '800 16px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '3px';
   ctx.textAlign = 'center';
-  ctx.fillText('TAP TO RETRY', w / 2, cardY + cardH + 48);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RETRY', retryBtn.x + retryBtn.width / 2, retryBtn.y + retryBtn.height / 2);
+  ctx.textBaseline = 'alphabetic';
   ctx.restore();
   ctx.letterSpacing = '0px';
 
-  // Share Score button
-  const shareBtnW = GAME_OVER_LAYOUT.shareButtonWidth;
-  const shareBtnH = GAME_OVER_LAYOUT.shareButtonHeight;
-  const shareBtnX = (w - shareBtnW) / 2;
-  const shareBtnY = cardY + cardH + GAME_OVER_LAYOUT.shareButtonYOffset;
+  // Share button — right side of the button row
+  const share = getShareButtonBounds(w, h);
   ctx.beginPath();
-  ctx.roundRect(shareBtnX, shareBtnY, shareBtnW, shareBtnH, 10);
+  ctx.roundRect(share.x, share.y, share.width, share.height, share.height / 2);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const btnTextY = shareBtnY + shareBtnH / 2;
+  const btnTextY = share.y + share.height / 2;
+  const btnTextX = share.x + share.width / 2;
 
   if (isCopied) {
     ctx.fillStyle = 'rgba(52,211,153,0.15)';
@@ -1810,7 +1900,7 @@ export function renderGameOver(
     ctx.font = '700 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
     ctx.fillStyle = '#34d399';
-    ctx.fillText('✓  CARD COPIED', w / 2, btnTextY);
+    ctx.fillText('✓  COPIED', btnTextX, btnTextY);
     ctx.letterSpacing = '0px';
   } else {
     ctx.fillStyle = 'rgba(56,189,248,0.12)';
@@ -1821,7 +1911,7 @@ export function renderGameOver(
     ctx.font = '600 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
     ctx.fillStyle = '#7dd3fc';
-    ctx.fillText('COPY RUN CARD', w / 2, btnTextY);
+    ctx.fillText('COPY RUN CARD', btnTextX, btnTextY);
     ctx.letterSpacing = '0px';
   }
   ctx.textBaseline = 'alphabetic';
@@ -1839,7 +1929,7 @@ export function renderPause(
 
   // Card
   const cardW = Math.min(320, w * 0.85);
-  const cardH = 280;
+  const cardH = 320;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 - 20;
   ctx.beginPath();
@@ -1861,6 +1951,53 @@ export function renderPause(
   ctx.fillText('PAUSED', w / 2, cardY + 45);
   ctx.restore();
 
+  // Mute toggle — circular button top-right of the card
+  const mb = getMuteButtonGeom(w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(mb.cx, mb.cy, mb.r, 0, Math.PI * 2);
+  ctx.fillStyle = state.settings.muted
+    ? 'rgba(251, 113, 133, 0.18)'
+    : 'rgba(56, 189, 248, 0.15)';
+  ctx.fill();
+  ctx.strokeStyle = state.settings.muted
+    ? 'rgba(251, 113, 133, 0.5)'
+    : 'rgba(56, 189, 248, 0.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Speaker glyph
+  const sx = mb.cx - 4;
+  const sy = mb.cy;
+  ctx.fillStyle = state.settings.muted ? '#fb7185' : '#7dd3fc';
+  ctx.beginPath();
+  ctx.moveTo(sx - 4, sy - 3);
+  ctx.lineTo(sx, sy - 3);
+  ctx.lineTo(sx + 4, sy - 6);
+  ctx.lineTo(sx + 4, sy + 6);
+  ctx.lineTo(sx, sy + 3);
+  ctx.lineTo(sx - 4, sy + 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = state.settings.muted ? '#fb7185' : '#7dd3fc';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  if (state.settings.muted) {
+    // Slash through the speaker
+    ctx.beginPath();
+    ctx.moveTo(mb.cx - 7, mb.cy - 7);
+    ctx.lineTo(mb.cx + 7, mb.cy + 7);
+    ctx.stroke();
+  } else {
+    // Sound waves
+    ctx.beginPath();
+    ctx.arc(sx + 5, sy, 3, -Math.PI / 4, Math.PI / 4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(sx + 5, sy, 6, -Math.PI / 4, Math.PI / 4);
+    ctx.stroke();
+  }
+  ctx.restore();
+
   // Divider
   const divGrad = ctx.createLinearGradient(w / 2 - 40, 0, w / 2 + 40, 0);
   divGrad.addColorStop(0, 'rgba(56,189,248,0)');
@@ -1873,6 +2010,11 @@ export function renderPause(
   const sliderX = cardX + 30;
   const sliderW = cardW - 60;
   const settings = state.settings;
+
+  // Visual dim when muted — sliders still show their values but faded
+  const sliderOpacity = settings.muted ? 0.35 : 1;
+  ctx.save();
+  ctx.globalAlpha = sliderOpacity;
 
   // Music volume
   ctx.textAlign = 'left';
@@ -1902,6 +2044,9 @@ export function renderPause(
   ctx.arc(sliderX + sliderW * settings.sfxVolume, cardY + 146, 7, 0, Math.PI * 2);
   ctx.fillStyle = '#38bdf8';
   ctx.fill();
+
+  ctx.restore();
+  ctx.textAlign = 'left';
 
   // Low Graphics toggle
   ctx.fillStyle = 'rgba(186, 230, 253, 0.7)';
