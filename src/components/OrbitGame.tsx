@@ -19,6 +19,7 @@ const OrbitGame = () => {
   const gameOverStartRef = useRef<number>(-1);
   const countUpTickRef = useRef<number>(0);
   const gameOverWasNewHighRef = useRef<boolean>(false);
+  const deathTipSeedRef = useRef<number>(0);
 
   const COUNT_UP_DURATION_MS = 1500;
   const COUNT_UP_TICK_MS = 200;
@@ -447,6 +448,7 @@ const OrbitGame = () => {
             gameOverStartRef.current = time;
             countUpTickRef.current = 0;
             gameOverWasNewHighRef.current = isNewHigh;
+            deathTipSeedRef.current = Math.floor(Math.random() * 1_000_000);
             if (isNewHigh) {
               state.highScore = state.score;
               localStorage.setItem('orbitHighScore', String(state.score));
@@ -478,7 +480,8 @@ const OrbitGame = () => {
               gameOverWasNewHighRef.current,
               shareFlashRef.current > 0,
               isRetryHover,
-              isShareHover
+              isShareHover,
+              deathTipSeedRef.current
             );
           }
         }
@@ -509,7 +512,8 @@ const OrbitGame = () => {
           gameOverWasNewHighRef.current,
           shareFlashRef.current > 0,
           isRetryHover,
-          isShareHover
+          isShareHover,
+          deathTipSeedRef.current
         );
       }
 

@@ -77,33 +77,68 @@ function shade(hex: string, factor: number): string {
   return `rgb(${nr},${ng},${nb})`;
 }
 
-function getDeathFeedback(deathReason: GameState['deathReason']): { title: string; tip: string; accent: string } {
-  switch (deathReason) {
-    case 'asteroid':
-      return {
-        title: 'CRASHED INTO ASTEROID',
-        tip: 'Tip: Release a little earlier and avoid dense rock lanes.',
-        accent: '#fb7185',
-      };
-    case 'out-of-bounds':
-      return {
-        title: 'LOST IN SPACE',
-        tip: 'Tip: Use a backtrack orbit to re-aim before committing.',
-        accent: '#fb923c',
-      };
-    case 'fell-behind':
-      return {
-        title: 'MOMENTUM LOST',
-        tip: 'Tip: Chain forward captures to keep pace with the camera.',
-        accent: '#38bdf8',
-      };
-    default:
-      return {
-        title: 'RUN ENDED',
-        tip: 'Tip: One clean release can recover most bad trajectories.',
-        accent: '#94a3b8',
-      };
-  }
+const DEATH_FEEDBACK: Record<
+  NonNullable<GameState['deathReason']> | 'default',
+  { title: string; accent: string; tips: string[] }
+> = {
+  asteroid: {
+    title: 'CRASHED INTO ASTEROID',
+    accent: '#fb7185',
+    tips: [
+      'Tip: Release a little earlier and avoid dense rock lanes.',
+      'Tip: Asteroid fields cluster. Thread the gaps, don’t punch through.',
+      'Tip: If you see rocks ahead, orbit further around for a safer angle.',
+      'Tip: A lost combo beats a shattered rocket. Dodge first, chain later.',
+      'Tip: The safest exit from orbit is rarely the straightest one.',
+      'Tip: Asteroids don’t move. You do. Plan the arc, then commit.',
+    ],
+  },
+  'out-of-bounds': {
+    title: 'LOST IN SPACE',
+    accent: '#fb923c',
+    tips: [
+      'Tip: Use a backtrack orbit to realign before committing.',
+      'Tip: A half orbit gives you a cleaner launch angle than a quarter.',
+      'Tip: When nothing’s ahead, arc toward the center band where planets spawn.',
+      'Tip: Don’t release blind. Wait for the orbit marker to line up.',
+      'Tip: Gravity bends your trajectory. Account for it before firing.',
+      'Tip: Small course corrections beat one desperate recovery.',
+    ],
+  },
+  'fell-behind': {
+    title: 'MOMENTUM LOST',
+    accent: '#38bdf8',
+    tips: [
+      'Tip: Chain forward captures to keep pace with the camera.',
+      'Tip: Every wasted orbit lets the camera gain ground.',
+      'Tip: Short, direct slingshots stack faster than long graceful ones.',
+      'Tip: Momentum compounds. Each orbit feeds the next.',
+      'Tip: Don’t linger in orbit. The camera doesn’t wait.',
+      'Tip: When in doubt, launch forward. Backward orbits cost you.',
+    ],
+  },
+  '': {
+    title: 'RUN ENDED',
+    accent: '#94a3b8',
+    tips: [
+      'Tip: One clean release can recover most bad trajectories.',
+      'Tip: The best runs feel unhurried. Read the field before you act.',
+    ],
+  },
+  default: {
+    title: 'RUN ENDED',
+    accent: '#94a3b8',
+    tips: ['Tip: One clean release can recover most bad trajectories.'],
+  },
+};
+
+function getDeathFeedback(
+  deathReason: GameState['deathReason'],
+  tipSeed: number
+): { title: string; tip: string; accent: string } {
+  const entry = DEATH_FEEDBACK[deathReason] ?? DEATH_FEEDBACK.default;
+  const idx = Math.abs(tipSeed) % entry.tips.length;
+  return { title: entry.title, accent: entry.accent, tip: entry.tips[idx] };
 }
 
 function wrapTextLines(
@@ -1678,9 +1713,10 @@ export function renderGameOver(
   isNew: boolean,
   isCopied: boolean,
   isRetryHover: boolean = false,
-  isShareHover: boolean = false
+  isShareHover: boolean = false,
+  tipSeed: number = 0
 ) {
-  const deathFeedback = getDeathFeedback(deathReason);
+  const deathFeedback = getDeathFeedback(deathReason, tipSeed);
 
   // Dark overlay with vignette
   ctx.fillStyle = 'rgba(4, 6, 15, 0.85)';
