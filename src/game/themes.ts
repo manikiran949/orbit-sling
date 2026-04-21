@@ -114,7 +114,7 @@ export const THEMES: Theme[] = [
 
 export const TRANSITION_METERS = 40;
 
-function parseColor(s: string): [number, number, number, number] {
+export function parseColor(s: string): [number, number, number, number] {
   if (s.startsWith('#')) {
     const h = s.slice(1);
     return [

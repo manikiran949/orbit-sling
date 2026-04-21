@@ -1,5 +1,5 @@
 import { GameState, Planet } from './types';
-import { getActiveTheme, THEMES } from './themes';
+import { getActiveTheme, THEMES, parseColor } from './themes';
 
 export const GAME_OVER_LAYOUT = {
   cardWidthMax: 300,
@@ -1127,26 +1127,31 @@ export function render(
   }
   ctx.globalAlpha = 1;
 
-  // Rocket trail (glowing gradient line)
+  // Rocket trail — tinted with the active biome's accent color so the
+  // trail shifts color alongside the background when a new theme unlocks.
   const trail = state.rocket.trail;
   if (trail.length > 1) {
+    const [tr, tg, tb] = parseColor(theme.accentColor);
     for (let i = 1; i < trail.length; i++) {
       const alpha = i / trail.length;
       ctx.beginPath();
       ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
       ctx.lineTo(trail[i].x, trail[i].y);
-      ctx.strokeStyle = `hsla(190, 95%, 60%, ${alpha * 0.85})`;
+      ctx.strokeStyle = `rgba(${tr}, ${tg}, ${tb}, ${alpha * 0.85})`;
       ctx.lineWidth = alpha * 4;
       ctx.lineCap = 'round';
       ctx.stroke();
     }
-    // Outer glow pass
+    // Outer glow pass — lifted toward white for a hotter core/halo feel
     for (let i = 1; i < trail.length; i++) {
       const alpha = i / trail.length;
+      const gr = Math.min(255, tr + 40);
+      const gg = Math.min(255, tg + 40);
+      const gb = Math.min(255, tb + 40);
       ctx.beginPath();
       ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
       ctx.lineTo(trail[i].x, trail[i].y);
-      ctx.strokeStyle = `hsla(190, 95%, 70%, ${alpha * 0.2})`;
+      ctx.strokeStyle = `rgba(${gr}, ${gg}, ${gb}, ${alpha * 0.2})`;
       ctx.lineWidth = alpha * 9;
       ctx.lineCap = 'round';
       ctx.stroke();
