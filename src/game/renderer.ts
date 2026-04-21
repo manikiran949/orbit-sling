@@ -1677,7 +1677,8 @@ export function renderGameOver(
   highScore: number,
   isNew: boolean,
   isCopied: boolean,
-  isRetryHover: boolean = false
+  isRetryHover: boolean = false,
+  isShareHover: boolean = false
 ) {
   const deathFeedback = getDeathFeedback(deathReason);
 
@@ -1881,8 +1882,9 @@ export function renderGameOver(
   ctx.restore();
   ctx.letterSpacing = '0px';
 
-  // Share button — right side of the button row
+  // Share button — right side of the button row, hover brightens on desktop
   const share = getShareButtonBounds(w, h);
+  ctx.save();
   ctx.beginPath();
   ctx.roundRect(share.x, share.y, share.width, share.height, share.height / 2);
 
@@ -1892,29 +1894,34 @@ export function renderGameOver(
   const btnTextX = share.x + share.width / 2;
 
   if (isCopied) {
-    ctx.fillStyle = 'rgba(52,211,153,0.15)';
+    ctx.fillStyle = isShareHover ? 'rgba(52,211,153,0.28)' : 'rgba(52,211,153,0.15)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(52,211,153,0.4)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isShareHover ? 'rgba(52,211,153,0.7)' : 'rgba(52,211,153,0.4)';
+    ctx.lineWidth = isShareHover ? 1.5 : 1;
     ctx.stroke();
+    ctx.shadowColor = 'rgba(52,211,153,0.5)';
+    ctx.shadowBlur = isShareHover ? 18 : 0;
     ctx.font = '700 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
-    ctx.fillStyle = '#34d399';
+    ctx.fillStyle = isShareHover ? '#a7f3d0' : '#34d399';
     ctx.fillText('✓  COPIED', btnTextX, btnTextY);
     ctx.letterSpacing = '0px';
   } else {
-    ctx.fillStyle = 'rgba(56,189,248,0.12)';
+    ctx.fillStyle = isShareHover ? 'rgba(56,189,248,0.22)' : 'rgba(56,189,248,0.12)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(56,189,248,0.3)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isShareHover ? 'rgba(56,189,248,0.6)' : 'rgba(56,189,248,0.3)';
+    ctx.lineWidth = isShareHover ? 1.5 : 1;
     ctx.stroke();
+    ctx.shadowColor = 'rgba(56,189,248,0.5)';
+    ctx.shadowBlur = isShareHover ? 18 : 0;
     ctx.font = '600 12px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '1px';
-    ctx.fillStyle = '#7dd3fc';
+    ctx.fillStyle = isShareHover ? '#bae6fd' : '#7dd3fc';
     ctx.fillText('COPY RUN CARD', btnTextX, btnTextY);
     ctx.letterSpacing = '0px';
   }
   ctx.textBaseline = 'alphabetic';
+  ctx.restore();
 }
 
 export function renderPause(

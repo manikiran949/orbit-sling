@@ -457,10 +457,14 @@ const OrbitGame = () => {
             if (shareFlashRef.current > 0) shareFlashRef.current--;
             const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
             const retry = getRetryButtonBounds(w, h);
+            const share = getShareButtonBounds(w, h);
             const mp = mousePosRef.current;
             const isRetryHover =
               !!mp && mp.x >= retry.x && mp.x <= retry.x + retry.width &&
               mp.y >= retry.y && mp.y <= retry.y + retry.height;
+            const isShareHover =
+              !!mp && mp.x >= share.x && mp.x <= share.x + share.width &&
+              mp.y >= share.y && mp.y <= share.y + share.height;
             renderGameOver(
               ctx,
               w,
@@ -473,7 +477,8 @@ const OrbitGame = () => {
               state.highScore,
               gameOverWasNewHighRef.current,
               shareFlashRef.current > 0,
-              isRetryHover
+              isRetryHover,
+              isShareHover
             );
           }
         }
@@ -483,10 +488,14 @@ const OrbitGame = () => {
         render(ctx, state, w, h, time);
         const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
         const retry = getRetryButtonBounds(w, h);
+        const share = getShareButtonBounds(w, h);
         const mp = mousePosRef.current;
         const isRetryHover =
           !!mp && mp.x >= retry.x && mp.x <= retry.x + retry.width &&
           mp.y >= retry.y && mp.y <= retry.y + retry.height;
+        const isShareHover =
+          !!mp && mp.x >= share.x && mp.x <= share.x + share.width &&
+          mp.y >= share.y && mp.y <= share.y + share.height;
         renderGameOver(
           ctx,
           w,
@@ -499,7 +508,8 @@ const OrbitGame = () => {
           state.highScore,
           gameOverWasNewHighRef.current,
           shareFlashRef.current > 0,
-          isRetryHover
+          isRetryHover,
+          isShareHover
         );
       }
 
