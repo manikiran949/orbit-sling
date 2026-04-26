@@ -2,10 +2,10 @@ import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarF
 import { getThemeIndex } from './themes';
 
 const ROCKET_SPEED = 4.2;
-const ORBIT_SPEED = 0.05;
+const ORBIT_SPEED_FACTOR = 3.5; // angular velocity = factor / orbitRadius (smaller planets orbit faster)
 
 const TRAIL_LENGTH = 60;
-const COMBO_WINDOW = 120; // frames (~2 seconds at 60fps)
+const COMBO_WINDOW = 180; // frames (~3 seconds at 60fps)
 
 const PLANET_PALETTES = [
   { color: '#e8a838', glow: 'rgba(232,168,56,0.45)', accent: '#b87a1c' },    // Gold
@@ -139,7 +139,7 @@ function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
 
   return {
     x: minX + rand(spacingMin, spacingMax),
-    y: rand(140, Math.max(460, canvasH - 140)),
+    y: rand(canvasH * 0.18, canvasH * 0.82),
     radius,
     orbitRadius: radius + rand(40, 60),
     color,
@@ -170,7 +170,7 @@ function generateAsteroid(minX: number, planets: Planet[], canvasH = 600): Aster
   for (let attempt = 0; attempt < 30; attempt++) {
     const xRangeHi = 350 + attempt * 20; // progressively widen search window
     x = minX + rand(150, xRangeHi);
-    y = rand(70, Math.max(530, canvasH - 70));
+    y = rand(canvasH * 0.1, canvasH * 0.9);
 
     let overlaps = false;
     for (const p of planets) {
@@ -248,7 +248,7 @@ export function createInitialState(canvasH = 600): GameState {
   // Hand-tuned starting planet
   planets.push({
     x: 200,
-    y: Math.max(320, canvasH / 2),
+    y: canvasH / 2,
     radius: 36,
     orbitRadius: 80,
     color: '#e8a838',
@@ -557,7 +557,9 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
 
   if (state.isOrbiting && state.orbitPlanetIndex >= 0) {
     const p = state.planets[state.orbitPlanetIndex];
-    state.orbitAngle += ORBIT_SPEED * state.orbitDirection;
+    // Orbit speed inversely proportional to radius — small planets spin fast, big ones slow
+    const orbitSpeed = ORBIT_SPEED_FACTOR / p.orbitRadius;
+    state.orbitAngle += orbitSpeed * state.orbitDirection;
 
     // Smooth capture transition: spiral into orbit over ~15 frames
     if (state.captureProgress < 1) {
@@ -644,8 +646,6 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     state.camera.x = r.x - canvasW * 0.3;
   } else {
     // Camera only follows forwards to prevent getting "lost in space" when flying
-    // state.score tracks the max X progress (divided by 10)
-    const maxRocketX = Math.max(r.x, state.score * 10);
     state.camera.x = Math.max(state.camera.x, r.x - canvasW * 0.3);
   }
   state.camera.y = 0;
