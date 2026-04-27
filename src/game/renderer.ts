@@ -1,4 +1,4 @@
-import { GameState, Planet } from './types';
+import { GameState, Planet, Comet } from './types';
 import { getActiveTheme, THEMES, parseColor } from './themes';
 
 export const GAME_OVER_LAYOUT = {
@@ -52,6 +52,16 @@ export function getShareButtonBounds(w: number, h: number): { x: number; y: numb
   };
 }
 
+export function getStatsButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
+  const btnW = 100;
+  return {
+    x: (w - btnW) / 2,
+    y: getButtonRowY(h) + GAME_OVER_LAYOUT.buttonHeight + 14,
+    width: btnW,
+    height: 30,
+  };
+}
+
 export function getMuteButtonGeom(w: number, h: number): { cx: number; cy: number; r: number } {
   const cardW = Math.min(320, w * 0.85);
   const cardH = 320;
@@ -91,6 +101,15 @@ const DEATH_FEEDBACK: Record<
       'Tip: A lost combo beats a shattered rocket. Dodge first, chain later.',
       'Tip: The safest exit from orbit is rarely the straightest one.',
       'Tip: Asteroids don’t move. You do. Plan the arc, then commit.',
+    ],
+  },
+  comet: {
+    title: 'STRUCK BY COMET',
+    accent: '#fbbf24',
+    tips: [
+      'Tip: Comets streak across fast. Watch for the bright trail.',
+      'Tip: Don’t fly in a straight line for too long—comets punish predictability.',
+      'Tip: Orbiting a planet shields you from passing comets.',
     ],
   },
   'out-of-bounds': {
@@ -783,7 +802,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
   }
 }
 
-function drawPlanet(ctx: CanvasRenderingContext2D, p: Planet) {
+function drawPlanet(ctx: CanvasRenderingContext2D, p: Planet, time: number = 0) {
   if (p.planetType === 'earth') {
     drawEarth(ctx, p);
     return;
@@ -1054,7 +1073,7 @@ export function render(
   // Planets
   for (const p of state.planets) {
     if (p.x - cx < -p.radius * 4 || p.x - cx > w + p.radius * 4) continue;
-    drawPlanet(ctx, p);
+    drawPlanet(ctx, p, time);
   }
 
   // Asteroids
@@ -1115,6 +1134,43 @@ export function render(
     ctx.stroke();
   }
 
+  // Comets — bright streaks
+  for (const c of state.comets) {
+    if (c.x - cx < -50 || c.x - cx > w + 50) continue;
+    // Trail
+    if (c.trail.length > 1) {
+      for (let i = 1; i < c.trail.length; i++) {
+        const a = i / c.trail.length;
+        ctx.beginPath();
+        ctx.moveTo(c.trail[i - 1].x, c.trail[i - 1].y);
+        ctx.lineTo(c.trail[i].x, c.trail[i].y);
+        ctx.strokeStyle = `rgba(255, 220, 100, ${a * 0.6})`;
+        ctx.lineWidth = a * 3;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+    }
+    // Body glow
+    const cGlow = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.radius * 3);
+    cGlow.addColorStop(0, 'rgba(255,240,180,0.5)');
+    cGlow.addColorStop(0.5, 'rgba(255,200,60,0.15)');
+    cGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = cGlow;
+    ctx.fillRect(c.x - c.radius * 3, c.y - c.radius * 3, c.radius * 6, c.radius * 6);
+    // Body
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(c.rotation);
+    const cbg = ctx.createRadialGradient(-c.radius * 0.2, -c.radius * 0.2, 0, 0, 0, c.radius);
+    cbg.addColorStop(0, '#fff8dc');
+    cbg.addColorStop(0.5, '#fbbf24');
+    cbg.addColorStop(1, '#b45309');
+    ctx.fillStyle = cbg;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Particles
   for (const p of state.particles) {
@@ -1127,11 +1183,12 @@ export function render(
   }
   ctx.globalAlpha = 1;
 
-  // Rocket trail — tinted with the active biome's accent color so the
-  // trail shifts color alongside the background when a new theme unlocks.
+  // Rocket trail — colored by rocket type for visual identity
+  const TRAIL_TYPE_COLORS: Record<string, string> = { aerospace: '#38bdf8', classic: '#fb923c', stealth: '#c084fc' };
+  const trailBaseColor = TRAIL_TYPE_COLORS[settings.rocketType] || theme.accentColor;
   const trail = state.rocket.trail;
   if (trail.length > 1) {
-    const [tr, tg, tb] = parseColor(theme.accentColor);
+    const [tr, tg, tb] = parseColor(trailBaseColor);
     for (let i = 1; i < trail.length; i++) {
       const alpha = i / trail.length;
       ctx.beginPath();
@@ -1975,6 +2032,26 @@ export function renderGameOver(
   }
   ctx.textBaseline = 'alphabetic';
   ctx.restore();
+
+  // Stats pill button — small, below retry/share
+  const statsBtn = getStatsButtonBounds(w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(statsBtn.x, statsBtn.y, statsBtn.width, statsBtn.height, statsBtn.height / 2);
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.font = '600 10px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '2px';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('STATS', statsBtn.x + statsBtn.width / 2, statsBtn.y + statsBtn.height / 2);
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = '0px';
+  ctx.restore();
 }
 
 export function renderPause(
@@ -2140,4 +2217,117 @@ export function renderPause(
   ctx.font = '400 12px "Inter", system-ui, sans-serif';
   ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
   ctx.fillText('Press ESC or tap to resume', w / 2, cardY + cardH - 20);
+}
+
+export function getStatsBackButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
+  const btnW = 140;
+  const cardH = 420;
+  const cardY = (h - cardH) / 2 - 10;
+  return { x: (w - btnW) / 2, y: cardY + cardH + 16, width: btnW, height: 38 };
+}
+
+export function renderStats(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  stats: import('./types').LifetimeStats
+) {
+  // Dark overlay
+  ctx.fillStyle = 'rgba(4, 6, 15, 0.88)';
+  ctx.fillRect(0, 0, w, h);
+
+  const cardW = Math.min(320, w * 0.88);
+  const cardH = 420;
+  const cardX = (w - cardW) / 2;
+  const cardY = (h - cardH) / 2 - 10;
+
+  // Card panel
+  ctx.save();
+  ctx.shadowColor = 'rgba(10, 14, 36, 0.9)';
+  ctx.shadowBlur = 40;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 20);
+  ctx.fillStyle = 'rgba(7, 10, 24, 0.8)';
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Title
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(56,189,248,0.4)';
+  ctx.shadowBlur = 20;
+  ctx.font = '800 24px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '5px';
+  ctx.fillStyle = '#e0f2fe';
+  ctx.fillText('LIFETIME STATS', w / 2, cardY + 48);
+  ctx.restore();
+  ctx.letterSpacing = '0px';
+
+  // Divider
+  const dg = ctx.createLinearGradient(w / 2 - 60, 0, w / 2 + 60, 0);
+  dg.addColorStop(0, 'rgba(56,189,248,0)');
+  dg.addColorStop(0.5, 'rgba(56,189,248,0.3)');
+  dg.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = dg;
+  ctx.fillRect(w / 2 - 60, cardY + 62, 120, 1);
+
+  // Stat rows
+  const leftX = cardX + 24;
+  const rightX = cardX + cardW - 24;
+  let rowY = cardY + 90;
+  const rowGap = 28;
+
+  const drawRow = (label: string, value: string, color = '#cbd5e1') => {
+    ctx.textAlign = 'left';
+    ctx.font = '500 12px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+    ctx.fillText(label, leftX, rowY);
+    ctx.textAlign = 'right';
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = color;
+    ctx.font = '700 13px "Inter", system-ui, sans-serif';
+    ctx.fillText(value, rightX, rowY);
+    rowY += rowGap;
+  };
+
+  drawRow('TOTAL FLIGHTS', stats.totalFlights.toLocaleString());
+  drawRow('TOTAL DISTANCE', `${stats.totalDistance.toLocaleString()}m`);
+  drawRow('EARTHS FOUND', stats.totalEarths.toLocaleString(), '#34d399');
+  drawRow('COMBO BONUS TOTAL', `+${stats.totalCombo.toLocaleString()}`, '#fbbf24');
+  drawRow('CLOSE CALLS', stats.totalCloseCalls.toLocaleString(), '#fb923c');
+  drawRow('BEST COMBO', `x${stats.bestCombo}`, '#fbbf24');
+  drawRow('COMETS DODGED', stats.cometsDodged.toLocaleString(), '#fcd34d');
+
+  // Favorite rocket
+  const usage = stats.rocketUsage;
+  let fav: 'aerospace' | 'classic' | 'stealth' = 'aerospace';
+  if (usage.classic > usage[fav]) fav = 'classic';
+  if (usage.stealth > usage[fav]) fav = 'stealth';
+  drawRow('FAVORITE ROCKET', fav.toUpperCase(), '#38bdf8');
+
+  // Back button
+  const backBtn = getStatsBackButtonBounds(w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(backBtn.x, backBtn.y, backBtn.width, backBtn.height, backBtn.height / 2);
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.shadowColor = 'rgba(56,189,248,0.5)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = '700 14px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '3px';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('BACK', backBtn.x + backBtn.width / 2, backBtn.y + backBtn.height / 2);
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = '0px';
+  ctx.restore();
 }

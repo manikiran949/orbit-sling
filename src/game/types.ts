@@ -4,7 +4,7 @@ export interface Vec2 {
 }
 
 export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
-export type DeathReason = 'asteroid' | 'out-of-bounds' | 'fell-behind' | '';
+export type DeathReason = 'asteroid' | 'comet' | 'out-of-bounds' | 'fell-behind' | '';
 
 export interface Planet {
   x: number;
@@ -29,6 +29,17 @@ export interface Asteroid {
   rotation: number;
   vertices: number[];
   spin: number;
+}
+
+export interface Comet {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  rotation: number;
+  spin: number;
+  trail: Vec2[];
 }
 
 export interface Star {
@@ -83,7 +94,16 @@ export interface ScreenShake {
   duration: number;
 }
 
-
+export interface LifetimeStats {
+  totalFlights: number;
+  totalDistance: number;
+  totalEarths: number;
+  totalCombo: number;
+  totalCloseCalls: number;
+  bestCombo: number;
+  cometsDodged: number;
+  rocketUsage: { aerospace: number; classic: number; stealth: number };
+}
 
 export interface Rocket {
   x: number;
@@ -98,6 +118,7 @@ export interface GameState {
   rocket: Rocket;
   planets: Planet[];
   asteroids: Asteroid[];
+  comets: Comet[];
 
   stars: Star[];
   nebulae: Nebula[];
@@ -118,7 +139,7 @@ export interface GameState {
   captureStartDist: number;
   lastReleasedPlanet: number;
   difficulty: number;
-  phase: 'menu' | 'playing' | 'gameover';
+  phase: 'menu' | 'playing' | 'gameover' | 'stats';
   scoreBonus: number;
   scoreBonusTimer: number;
   scoreBonusLabel: 'combo' | 'earth' | '';
@@ -141,4 +162,5 @@ export interface GameState {
   closeCalls: number;
   closeCallTimer: number;
   closeCallCooldown: number;
+  lifetimeStats: LifetimeStats;
 }
