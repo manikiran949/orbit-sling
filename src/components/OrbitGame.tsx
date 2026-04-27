@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { createInitialState, releaseRocket, update, togglePause, saveSettings, updateVisualsOnly } from '@/game/engine';
-import { render, renderMenu, renderGameOver, renderPause, getPauseButtonCenter, getMuteButtonGeom, getRetryButtonBounds, getShareButtonBounds } from '@/game/renderer';
+import { createInitialState, releaseRocket, update, togglePause, saveSettings, updateVisualsOnly, updateLifetimeStatsOnDeath } from '@/game/engine';
+import { render, renderMenu, renderGameOver, renderPause, renderStats, getPauseButtonCenter, getMuteButtonGeom, getRetryButtonBounds, getShareButtonBounds, getStatsButtonBounds, getStatsBackButtonBounds } from '@/game/renderer';
 import { GameState } from '@/game/types';
 import { audio } from '@/game/audio';
 import { vibrate, HAPTIC } from '@/game/haptics';
@@ -131,17 +131,28 @@ const OrbitGame = () => {
       return;
     }
     if (state.phase === 'gameover') {
-      // Check if tap is on the Share button
       const canvas = canvasRef.current;
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-        const share = getShareButtonBounds(window.innerWidth, window.innerHeight);
+        const ww = window.innerWidth;
+        const hh = window.innerHeight;
+
+        // Share button
+        const share = getShareButtonBounds(ww, hh);
         if (mx >= share.x && mx <= share.x + share.width && my >= share.y && my <= share.y + share.height) {
           navigator.clipboard.writeText(state.shareMessage).then(() => {
             shareFlashRef.current = 60;
           }).catch(() => { /* clipboard failed silently */ });
+          audio.playClick();
+          return;
+        }
+
+        // Stats button
+        const statsBtn = getStatsButtonBounds(ww, hh);
+        if (mx >= statsBtn.x && mx <= statsBtn.x + statsBtn.width && my >= statsBtn.y && my <= statsBtn.y + statsBtn.height) {
+          state.phase = 'stats';
           audio.playClick();
           return;
         }
@@ -154,6 +165,21 @@ const OrbitGame = () => {
       stateRef.current.phase = 'playing';
       audio.playClick();
       if (!audio.isPlaying) audio.startMusic();
+      return;
+    }
+    if (state.phase === 'stats') {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const backBtn = getStatsBackButtonBounds(window.innerWidth, window.innerHeight);
+        if (mx >= backBtn.x && mx <= backBtn.x + backBtn.width && my >= backBtn.y && my <= backBtn.y + backBtn.height) {
+          state.phase = 'gameover';
+          audio.playClick();
+          return;
+        }
+      }
       return;
     }
     if (state.paused) {
@@ -350,6 +376,12 @@ const OrbitGame = () => {
         return;
       }
 
+      if (state.phase === 'stats') {
+        state.phase = 'gameover';
+        audio.playClick();
+        return;
+      }
+
       if (state.phase === 'playing' && state.paused) {
         togglePause(state);
         audio.playClick();
@@ -479,6 +511,7 @@ const OrbitGame = () => {
             countUpTickRef.current = 0;
             gameOverWasNewHighRef.current = isNewHigh;
             deathTipSeedRef.current = Math.floor(Math.random() * 1_000_000);
+            updateLifetimeStatsOnDeath(state);
             if (isNewHigh) {
               state.highScore = state.score;
               localStorage.setItem('orbitHighScore', String(state.score));
@@ -516,6 +549,8 @@ const OrbitGame = () => {
             );
           }
         }
+      } else if (state.phase === 'stats') {
+        renderStats(ctx, w, h, state.lifetimeStats);
       } else {
         if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
