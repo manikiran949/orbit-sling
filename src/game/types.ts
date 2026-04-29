@@ -5,6 +5,7 @@ export interface Vec2 {
 
 export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
 export type DeathReason = 'asteroid' | 'comet' | 'out-of-bounds' | 'fell-behind' | '';
+export type PowerUpType = 'shield' | 'magnet' | 'wormhole';
 
 export interface Planet {
   x: number;
@@ -80,6 +81,21 @@ export interface SolarFlare {
   opacity: number;
 }
 
+export interface PowerUp {
+  x: number;
+  y: number;
+  type: PowerUpType;
+  radius: number;
+  bobPhase: number;
+  collected: boolean;
+}
+
+export interface ActiveEffect {
+  type: PowerUpType;
+  timer: number;
+  maxTimer: number;
+}
+
 export interface GameSettings {
   musicVolume: number;
   sfxVolume: number;
@@ -102,6 +118,7 @@ export interface LifetimeStats {
   totalCloseCalls: number;
   bestCombo: number;
   cometsDodged: number;
+  powerupsCollected: number;
   rocketUsage: { aerospace: number; classic: number; stealth: number };
 }
 
@@ -119,6 +136,8 @@ export interface GameState {
   planets: Planet[];
   asteroids: Asteroid[];
   comets: Comet[];
+  powerups: PowerUp[];
+  activeEffects: ActiveEffect[];
 
   stars: Star[];
   nebulae: Nebula[];
@@ -162,5 +181,8 @@ export interface GameState {
   closeCalls: number;
   closeCallTimer: number;
   closeCallCooldown: number;
+  shieldHitTimer: number;
+  wormholeFlashTimer: number;
+  powerupsCollectedThisRun: number;
   lifetimeStats: LifetimeStats;
 }
