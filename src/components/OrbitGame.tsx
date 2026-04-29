@@ -409,6 +409,8 @@ const OrbitGame = () => {
     let prevOrbiting = false;
     let prevThemeIdx = 0;
     let prevCloseCalls = 0;
+    let prevPowerupCount = 0;
+    let prevHadShield = false;
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -457,6 +459,10 @@ const OrbitGame = () => {
       if (prevCloseCalls > state.closeCalls) {
         prevCloseCalls = state.closeCalls;
       }
+      if (prevPowerupCount > state.lifetimeStats.powerupsCollected) {
+        prevPowerupCount = state.lifetimeStats.powerupsCollected;
+        prevHadShield = false;
+      }
 
       if (state.phase === 'menu') {
         renderMenu(ctx, w, h, time, state.highScore, state.settings.rocketType || 'aerospace');
@@ -497,6 +503,28 @@ const OrbitGame = () => {
             vibrate(HAPTIC.capture);
           }
           prevCloseCalls = state.closeCalls;
+
+          // Power-up pickup audio
+          if (state.lifetimeStats.powerupsCollected > prevPowerupCount) {
+            // Determine which type was just collected by checking wormhole flash or active effects
+            if (state.wormholeFlashTimer > 25) {
+              audio.playWormholeActivate();
+            } else if (state.activeEffects.some(e => e.type === 'magnet' && e.timer > 450)) {
+              audio.playMagnetPickup();
+            } else {
+              audio.playShieldPickup();
+            }
+            vibrate(HAPTIC.capture);
+          }
+          prevPowerupCount = state.lifetimeStats.powerupsCollected;
+
+          // Shield break audio
+          const hasShieldNow = state.activeEffects.some(e => e.type === 'shield' && e.timer > 0);
+          if (prevHadShield && !hasShieldNow && state.shieldHitTimer > 25) {
+            audio.playShieldBreak();
+            vibrate(HAPTIC.death);
+          }
+          prevHadShield = hasShieldNow;
 
           // Music intensity tracks combo multiplier (1x..5x → 0..1)
           audio.setMusicIntensity((state.comboMultiplier - 1) / 4);

@@ -1,4 +1,4 @@
-import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings, Comet, LifetimeStats } from './types';
+import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings, Comet, LifetimeStats, PowerUp, PowerUpType, ActiveEffect } from './types';
 import { getThemeIndex } from './themes';
 
 const ROCKET_SPEED = 4.2;
@@ -8,9 +8,9 @@ const TRAIL_LENGTH = 60;
 const COMBO_WINDOW = 180;
 
 const ROCKET_STATS: Record<string, { speedMult: number; hitboxRadius: number; orbitRadiusBonus: number }> = {
-  aerospace: { speedMult: 1.0,  hitboxRadius: 6,  orbitRadiusBonus: 0  },
-  classic:   { speedMult: 1.15, hitboxRadius: 7,  orbitRadiusBonus: 8  },
-  stealth:   { speedMult: 0.95, hitboxRadius: 4,  orbitRadiusBonus: -5 },
+  aerospace: { speedMult: 1.0, hitboxRadius: 6, orbitRadiusBonus: 0 },
+  classic: { speedMult: 1.15, hitboxRadius: 7, orbitRadiusBonus: 8 },
+  stealth: { speedMult: 0.95, hitboxRadius: 4, orbitRadiusBonus: -5 },
 };
 
 const PLANET_PALETTES = [
@@ -82,7 +82,7 @@ export function saveSettings(settings: GameSettings) {
 function defaultLifetimeStats(): LifetimeStats {
   return {
     totalFlights: 0, totalDistance: 0, totalEarths: 0, totalCombo: 0,
-    totalCloseCalls: 0, bestCombo: 0, cometsDodged: 0,
+    totalCloseCalls: 0, bestCombo: 0, cometsDodged: 0, powerupsCollected: 0,
     rocketUsage: { aerospace: 0, classic: 0, stealth: 0 },
   };
 }
@@ -284,6 +284,53 @@ function generateComet(cameraX: number, canvasW: number, canvasH: number): Comet
   };
 }
 
+const POWERUP_DURATIONS: Record<PowerUpType, number> = {
+  shield: 600,  // 10 seconds at 60fps
+  magnet: 480,  // 8 seconds
+  wormhole: 1,  // instant — consumed immediately
+};
+
+function generatePowerUp(minX: number, planets: Planet[], canvasH: number): PowerUp | null {
+  const types: PowerUpType[] = ['shield', 'magnet', 'wormhole'];
+  const typeWeights = [0.40, 0.35, 0.25]; // shield most common, wormhole rarest
+  const roll = Math.random();
+  let cumulative = 0;
+  let type: PowerUpType = 'shield';
+  for (let i = 0; i < types.length; i++) {
+    cumulative += typeWeights[i];
+    if (roll < cumulative) { type = types[i]; break; }
+  }
+
+  const radius = 14;
+  const clearance = 30;
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const x = minX + rand(200, 500);
+    const y = rand(canvasH * 0.15, canvasH * 0.85);
+
+    let overlaps = false;
+    for (const p of planets) {
+      if (Math.abs(p.x - x) > p.orbitRadius + radius + clearance + 40) continue;
+      const dist = Math.hypot(x - p.x, y - p.y);
+      if (dist < p.orbitRadius + radius + clearance) {
+        overlaps = true;
+        break;
+      }
+    }
+    if (!overlaps) {
+      return {
+        x,
+        y,
+        type,
+        radius,
+        bobPhase: Math.random() * Math.PI * 2,
+        collected: false,
+      };
+    }
+  }
+  return null;
+}
+
 
 export function createInitialState(canvasH = 600): GameState {
   const planets: Planet[] = [];
@@ -338,6 +385,8 @@ export function createInitialState(canvasH = 600): GameState {
     planets,
     asteroids,
     comets: [],
+    powerups: [],
+    activeEffects: [],
 
     stars: generateStars(),
     nebulae: generateNebulae(),
@@ -381,6 +430,9 @@ export function createInitialState(canvasH = 600): GameState {
     closeCalls: 0,
     closeCallTimer: 0,
     closeCallCooldown: 0,
+    shieldHitTimer: 0,
+    wormholeFlashTimer: 0,
+    powerupsCollectedThisRun: 0,
     lifetimeStats: loadLifetimeStats(),
   };
 }
@@ -459,7 +511,8 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
     const dx = r.x - p.x;
     const dy = r.y - p.y;
     const d = Math.hypot(dx, dy);
-    if (d <= p.orbitRadius + 8 + rStats.orbitRadiusBonus && d >= p.radius) {
+    const effectiveOrbitBonus = rStats.orbitRadiusBonus + (hasActiveEffect(state, 'magnet') ? 25 : 0);
+    if (d <= p.orbitRadius + 8 + effectiveOrbitBonus && d >= p.radius) {
 
 
       const cross = r.vx * dy - r.vy * dx;
@@ -594,6 +647,65 @@ export function updateVisualsOnly(state: GameState) {
       state.screenShake.intensity = 0;
     }
   }
+  // Keep HUD timers decaying during game over
+  if (state.shieldHitTimer > 0) state.shieldHitTimer -= 1;
+  if (state.wormholeFlashTimer > 0) state.wormholeFlashTimer -= 1;
+}
+
+function hasActiveEffect(state: GameState, type: PowerUpType): boolean {
+  return state.activeEffects.some(e => e.type === type && e.timer > 0);
+}
+
+function activatePowerUp(state: GameState, type: PowerUpType): void {
+  if (type === 'wormhole') {
+    // Instant teleport: warp forward 500 world-units
+    const warpDistance = 500;
+    state.rocket.x += warpDistance;
+    state.distanceMeters += Math.floor(warpDistance / 10);
+    state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
+    state.wormholeFlashTimer = 30; // visual flash
+    state.screenShake = { intensity: 6, duration: 20 };
+    // Reset orbit state so we don't keep orbiting a planet we're now far from
+    if (state.isOrbiting) {
+      state.isOrbiting = false;
+      state.orbitPlanetIndex = -1;
+      const stats = ROCKET_STATS[state.settings.rocketType] || ROCKET_STATS.aerospace;
+      const speed = ROCKET_SPEED * stats.speedMult;
+      state.rocket.vx = speed;
+      state.rocket.vy = 0;
+      state.rocket.angle = 0;
+    }
+    state.lastReleasedPlanet = -1;
+    // Clear trail so it doesn't draw a line across the warp
+    state.rocket.trail = [];
+    // Burst particles at the exit point
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = rand(1, 4);
+      state.particles.push({
+        x: state.rocket.x, y: state.rocket.y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 40, maxLife: 40,
+        color: i % 3 === 0 ? '#c084fc' : i % 3 === 1 ? '#e879f9' : '#ffffff',
+        size: rand(2, 4),
+      });
+    }
+    return;
+  }
+
+  // Timed effects (shield, magnet): stack duration if already active
+  const existing = state.activeEffects.find(e => e.type === type);
+  const duration = POWERUP_DURATIONS[type];
+  if (existing) {
+    existing.timer = duration;
+    existing.maxTimer = duration;
+  } else {
+    state.activeEffects.push({ type, timer: duration, maxTimer: duration });
+  }
+}
+
+function removeActiveEffect(state: GameState, type: PowerUpType): void {
+  state.activeEffects = state.activeEffects.filter(e => e.type !== type);
 }
 
 export function update(state: GameState, canvasW: number, canvasH: number, frameCount: number): boolean {
@@ -625,6 +737,16 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
       state.screenShake.intensity = 0;
     }
   }
+
+  // Shield / wormhole hit timers
+  if (state.shieldHitTimer > 0) state.shieldHitTimer -= 1;
+  if (state.wormholeFlashTimer > 0) state.wormholeFlashTimer -= 1;
+
+  // Active effect timers
+  for (const e of state.activeEffects) {
+    if (e.timer > 0) e.timer -= 1;
+  }
+  state.activeEffects = state.activeEffects.filter(e => e.timer > 0);
 
   if (state.isOrbiting && state.orbitPlanetIndex >= 0) {
     const p = state.planets[state.orbitPlanetIndex];
@@ -781,6 +903,51 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     }
   }
 
+  // Spawn power-ups — first one at 150m, then roughly every 300-600m
+  if (state.distanceMeters > 150) {
+    const lastPU = state.powerups[state.powerups.length - 1];
+    const spawnAfterX = lastPU ? lastPU.x + rand(300, 600) : r.x + rand(200, 400);
+    if (!lastPU || r.x > spawnAfterX - canvasW * 1.5) {
+      const pu = generatePowerUp(lastPU ? lastPU.x + rand(300, 600) : r.x + rand(200, 400), state.planets, canvasH);
+      if (pu) state.powerups.push(pu);
+    }
+  }
+
+  // Collect power-ups — fly-through pickup
+  const rHitbox = (ROCKET_STATS[state.settings.rocketType] || ROCKET_STATS.aerospace).hitboxRadius;
+  const rHitboxPU = rHitbox + 8; // slightly generous pickup radius
+  for (const pu of state.powerups) {
+    if (pu.collected) continue;
+    const d = Math.hypot(pu.x - r.x, pu.y - r.y);
+    if (d < pu.radius + rHitboxPU) {
+      pu.collected = true;
+      activatePowerUp(state, pu.type);
+      state.lifetimeStats.powerupsCollected += 1;
+      state.powerupsCollectedThisRun += 1;
+
+      // Collection sparkle
+      const puColors: Record<PowerUpType, string[]> = {
+        shield: ['#38bdf8', '#7dd3fc', '#ffffff'],
+        magnet: ['#fbbf24', '#fde68a', '#ffffff'],
+        wormhole: ['#c084fc', '#e879f9', '#ffffff'],
+      };
+      const colors = puColors[pu.type];
+      for (let i = 0; i < 16; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = rand(0.5, 3);
+        state.particles.push({
+          x: pu.x, y: pu.y,
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+          life: 35, maxLife: 35,
+          color: colors[i % colors.length],
+          size: rand(2, 4),
+        });
+      }
+    }
+  }
+  // Remove collected or far-behind power-ups
+  state.powerups = state.powerups.filter(pu => !pu.collected && pu.x > state.camera.x - 200);
+
 
   // Extend stars/nebulae as we travel
   if (state.stars.length > 0) {
@@ -811,11 +978,28 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     }
   }
 
-  const rHitbox = (ROCKET_STATS[state.settings.rocketType] || ROCKET_STATS.aerospace).hitboxRadius;
-
   for (const a of state.asteroids) {
     const d = Math.hypot(a.x - r.x, a.y - r.y);
     if (d < a.radius + rHitbox) {
+      // Shield absorbs the hit
+      if (hasActiveEffect(state, 'shield')) {
+        removeActiveEffect(state, 'shield');
+        state.shieldHitTimer = 30;
+        state.screenShake = { intensity: 4, duration: 15 };
+        // Shatter particles
+        for (let i = 0; i < 12; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const sp = rand(1, 3);
+          state.particles.push({
+            x: r.x, y: r.y,
+            vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+            life: 30, maxLife: 30,
+            color: i % 2 === 0 ? '#38bdf8' : '#ffffff',
+            size: rand(2, 4),
+          });
+        }
+        continue;
+      }
       state.deathReason = 'asteroid';
       spawnDeathExplosion(state);
       // Impact debris — extra rocky chunks
@@ -845,6 +1029,24 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   for (const c of state.comets) {
     const cd = Math.hypot(c.x - r.x, c.y - r.y);
     if (cd < c.radius + rHitbox) {
+      // Shield absorbs the hit
+      if (hasActiveEffect(state, 'shield')) {
+        removeActiveEffect(state, 'shield');
+        state.shieldHitTimer = 30;
+        state.screenShake = { intensity: 5, duration: 18 };
+        for (let i = 0; i < 12; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const sp = rand(1, 3);
+          state.particles.push({
+            x: r.x, y: r.y,
+            vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+            life: 30, maxLife: 30,
+            color: i % 2 === 0 ? '#38bdf8' : '#ffffff',
+            size: rand(2, 4),
+          });
+        }
+        continue;
+      }
       state.deathReason = 'comet';
       spawnDeathExplosion(state);
       buildShareMessage(state);
@@ -905,6 +1107,7 @@ export function buildShareMessage(state: GameState): void {
 
   if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
   if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
+  if (state.powerupsCollectedThisRun > 0) lines.push(`⚡ Power-ups: ${state.powerupsCollectedThisRun}`);
   if (state.closeCalls > 0) lines.push(`😅 Close Calls: ${state.closeCalls}`);
 
   lines.push('');

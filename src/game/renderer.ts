@@ -1,4 +1,4 @@
-import { GameState, Planet, Comet } from './types';
+import { GameState, Planet, Comet, PowerUpType } from './types';
 import { getActiveTheme, THEMES, parseColor } from './themes';
 
 export const GAME_OVER_LAYOUT = {
@@ -970,6 +970,123 @@ function drawPlanet(ctx: CanvasRenderingContext2D, p: Planet, time: number = 0) 
   ctx.restore();
 }
 
+function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: PowerUpType, radius: number, bobPhase: number, time: number) {
+  const bob = Math.sin(time * 0.004 + bobPhase) * 4;
+  const drawY = y + bob;
+  const pulse = 0.8 + 0.2 * Math.sin(time * 0.006 + bobPhase);
+  const rotation = time * 0.002 + bobPhase;
+
+  // Color schemes per type
+  const colors: Record<PowerUpType, { primary: string; glow: string; icon: string }> = {
+    shield: { primary: '#38bdf8', glow: 'rgba(56,189,248,0.5)', icon: '#e0f2fe' },
+    magnet: { primary: '#fbbf24', glow: 'rgba(251,191,36,0.5)', icon: '#fef3c7' },
+    wormhole: { primary: '#c084fc', glow: 'rgba(192,132,252,0.5)', icon: '#f3e8ff' },
+  };
+  const c = colors[type];
+
+  // Strong, soft glow
+  ctx.save();
+  ctx.globalAlpha = pulse;
+  const glow = ctx.createRadialGradient(x, drawY, 0, x, drawY, radius * 2.2);
+  glow.addColorStop(0, c.glow);
+  glow.addColorStop(0.4, c.glow.replace('0.5', '0.25'));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - radius * 3, drawY - radius * 3, radius * 6, radius * 6);
+  ctx.restore();
+
+  // Draw main icon
+  ctx.save();
+  ctx.translate(x, drawY);
+  
+  // Subtle drop shadow for the icon itself to pop off the glow
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+
+  if (type === 'shield') {
+    // Bold Shield icon
+    ctx.scale(1.3, 1.3);
+    ctx.beginPath();
+    ctx.moveTo(0, -7);
+    ctx.quadraticCurveTo(8, -5, 8, 0);
+    ctx.quadraticCurveTo(8, 6, 0, 9);
+    ctx.quadraticCurveTo(-8, 6, -8, 0);
+    ctx.quadraticCurveTo(-8, -5, 0, -7);
+    ctx.closePath();
+    
+    // Fill
+    ctx.fillStyle = c.primary;
+    ctx.fill();
+    
+    // Checkmark inside
+    ctx.shadowColor = 'transparent';
+    ctx.beginPath();
+    ctx.moveTo(-2.5, 0.5);
+    ctx.lineTo(-0.5, 3);
+    ctx.lineTo(3.5, -2.5);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+  } else if (type === 'magnet') {
+    // Bold Magnet icon
+    ctx.scale(1.3, 1.3);
+    
+    // Horseshoe body
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI, true); // Top curve
+    ctx.lineTo(-5, 4);
+    ctx.lineTo(-2, 4);
+    ctx.lineTo(-2, 0);
+    ctx.arc(0, 0, 2, Math.PI, 0, false); // Inner curve
+    ctx.lineTo(2, 4);
+    ctx.lineTo(5, 4);
+    ctx.closePath();
+    
+    ctx.fillStyle = c.primary;
+    ctx.fill();
+
+    // Red/Blue tips
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(-5, 4, 3, 3);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(2, 4, 3, 3);
+
+  } else if (type === 'wormhole') {
+    // Clean swirling star portal
+    ctx.scale(1.2, 1.2);
+    ctx.rotate(rotation * 2);
+    
+    ctx.fillStyle = c.primary;
+    ctx.beginPath();
+    // 4-point swirling star
+    for (let i = 0; i < 4; i++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.moveTo(0, -2);
+      ctx.quadraticCurveTo(2, -2, 8, -8);
+      ctx.quadraticCurveTo(2, 2, 2, 0);
+    }
+    ctx.fill();
+
+    // Bright center
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = c.primary;
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 export function render(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -1172,6 +1289,13 @@ export function render(
     ctx.restore();
   }
 
+  // Power-ups — floating pickups in the world
+  for (const pu of state.powerups) {
+    if (pu.collected) continue;
+    if (pu.x - cx < -50 || pu.x - cx > w + 50) continue;
+    drawPowerUp(ctx, pu.x, pu.y, pu.type, pu.radius, pu.bobPhase, time);
+  }
+
   // Particles
   for (const p of state.particles) {
     const a = p.life / p.maxLife;
@@ -1217,6 +1341,45 @@ export function render(
 
   // Rocket
   const r = state.rocket;
+
+  // Shield aura around rocket (drawn behind the rocket sprite)
+  const hasShield = state.activeEffects.some(e => e.type === 'shield' && e.timer > 0);
+  if (hasShield) {
+    const shieldEffect = state.activeEffects.find(e => e.type === 'shield')!;
+    const shieldAlpha = Math.min(1, shieldEffect.timer / 60) * (0.3 + 0.1 * Math.sin(time * 0.008));
+    const shieldRadius = 22;
+    const sg = ctx.createRadialGradient(r.x, r.y, shieldRadius * 0.3, r.x, r.y, shieldRadius);
+    sg.addColorStop(0, `rgba(56,189,248,${shieldAlpha * 0.1})`);
+    sg.addColorStop(0.6, `rgba(56,189,248,${shieldAlpha * 0.3})`);
+    sg.addColorStop(0.85, `rgba(125,211,252,${shieldAlpha * 0.5})`);
+    sg.addColorStop(1, `rgba(56,189,248,0)`);
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, shieldRadius, 0, Math.PI * 2);
+    ctx.fill();
+    // Animated ring
+    const ringRot = time * 0.003;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, shieldRadius - 2, ringRot, ringRot + Math.PI * 1.5);
+    ctx.strokeStyle = `rgba(125,211,252,${shieldAlpha * 0.8})`;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // Magnet capture-radius indicator
+  const hasMagnet = state.activeEffects.some(e => e.type === 'magnet' && e.timer > 0);
+  if (hasMagnet && !state.isOrbiting) {
+    const magnetAlpha = 0.08 + 0.04 * Math.sin(time * 0.005);
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, 33, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(251,191,36,${magnetAlpha * 3})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   ctx.save();
   ctx.translate(r.x, r.y);
   ctx.rotate(r.angle);
@@ -1532,6 +1695,83 @@ export function render(
     ctx.restore();
   }
 
+  // Active power-up effect HUD — small pills at the bottom-center
+  if (state.activeEffects.length > 0) {
+    const pillW = 110;
+    const pillH = 28;
+    const pillGap = 8;
+    const totalW = state.activeEffects.length * pillW + (state.activeEffects.length - 1) * pillGap;
+    const startX = (w - totalW) / 2;
+    const pillY = h - 50;
+
+    const effectMeta: Record<PowerUpType, { label: string; color: string; bg: string }> = {
+      shield: { label: '🛡 SHIELD', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
+      magnet: { label: '🧲 MAGNET', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+      wormhole: { label: '🌀 WARP', color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
+    };
+
+    state.activeEffects.forEach((ef, i) => {
+      const px = startX + i * (pillW + pillGap);
+      const meta = effectMeta[ef.type];
+      const progress = ef.timer / ef.maxTimer;
+      const isLow = progress < 0.25;
+
+      ctx.save();
+      // Pill background
+      ctx.beginPath();
+      ctx.roundRect(px, pillY, pillW, pillH, pillH / 2);
+      ctx.fillStyle = meta.bg;
+      ctx.fill();
+      ctx.strokeStyle = isLow ? 'rgba(251,113,133,0.5)' : meta.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Progress bar inside the pill (bottom 3px)
+      const barY = pillY + pillH - 4;
+      const barW = pillW - 16;
+      const barX = px + 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barW, 2, 1);
+      ctx.fill();
+      ctx.fillStyle = isLow ? '#fb7185' : meta.color;
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, Math.max(1, barW * progress), 2, 1);
+      ctx.fill();
+
+      // Label
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '700 10px "Inter", system-ui, sans-serif';
+      ctx.letterSpacing = '1px';
+      ctx.fillStyle = isLow ? '#fb7185' : meta.color;
+      ctx.fillText(meta.label, px + pillW / 2, pillY + pillH / 2 - 2);
+      ctx.letterSpacing = '0px';
+      ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+    });
+  }
+
+  // Wormhole warp flash overlay
+  if (state.wormholeFlashTimer > 0) {
+    const flashAlpha = (state.wormholeFlashTimer / 30) * 0.35;
+    ctx.save();
+    ctx.globalAlpha = flashAlpha;
+    ctx.fillStyle = '#c084fc';
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  // Shield-hit flash overlay
+  if (state.shieldHitTimer > 0) {
+    const flashAlpha = (state.shieldHitTimer / 30) * 0.25;
+    ctx.save();
+    ctx.globalAlpha = flashAlpha;
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
   // End screen shake save
   ctx.restore();
 }
@@ -1764,6 +2004,43 @@ export function renderMenu(
   ctx.fillText(rocketType.toUpperCase(), w / 2, pillY + pillH + 20 * verticalScale);
   ctx.letterSpacing = '0px';
   ctx.restore();
+
+  // Power-up info legend (visible on wider screens)
+  if (w > 768) {
+    ctx.save();
+    // Position to the left of the central planet
+    const legendX = (w / 2) - Math.min(380, w * 0.45);
+    const legendY = py - 30;
+    
+    ctx.textAlign = 'left';
+    ctx.font = '700 11px "Inter", system-ui, sans-serif';
+    ctx.letterSpacing = '2px';
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
+    ctx.fillText('PICKUPS', legendX + 40, legendY - 20);
+
+    const drawLegendItem = (yOffset: number, type: PowerUpType, title: string, desc: string) => {
+      const y = legendY + yOffset;
+      // Draw a stationary/slow-bobbing powerup icon
+      drawPowerUp(ctx, legendX + 15, y + 6, type, 11, yOffset, time);
+      
+      ctx.textAlign = 'left';
+      ctx.font = '800 12px "Inter", system-ui, sans-serif';
+      ctx.letterSpacing = '1px';
+      ctx.fillStyle = type === 'shield' ? '#38bdf8' : type === 'magnet' ? '#fbbf24' : '#c084fc';
+      ctx.fillText(title, legendX + 40, y);
+      
+      ctx.font = '500 11px "Inter", system-ui, sans-serif';
+      ctx.letterSpacing = '0.5px';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fillText(desc, legendX + 40, y + 16);
+    };
+
+    drawLegendItem(0, 'shield', 'SHIELD', 'Absorbs 1 fatal impact');
+    drawLegendItem(45, 'magnet', 'MAGNET', 'Widens orbit capture zone');
+    drawLegendItem(90, 'wormhole', 'WORMHOLE', 'Warps 500m forward');
+
+    ctx.restore();
+  }
 
   if (highScore > 0) {
     ctx.font = `700 ${Math.round(13 * verticalScale)}px "Inter", system-ui, sans-serif`;
@@ -2221,7 +2498,7 @@ export function renderPause(
 
 export function getStatsBackButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
   const btnW = 140;
-  const cardH = 420;
+  const cardH = 450;
   const cardY = (h - cardH) / 2 - 10;
   return { x: (w - btnW) / 2, y: cardY + cardH + 16, width: btnW, height: 38 };
 }
@@ -2237,7 +2514,7 @@ export function renderStats(
   ctx.fillRect(0, 0, w, h);
 
   const cardW = Math.min(320, w * 0.88);
-  const cardH = 420;
+  const cardH = 450;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 - 10;
 
@@ -2301,6 +2578,7 @@ export function renderStats(
   drawRow('CLOSE CALLS', stats.totalCloseCalls.toLocaleString(), '#fb923c');
   drawRow('BEST COMBO', `x${stats.bestCombo}`, '#fbbf24');
   drawRow('COMETS DODGED', stats.cometsDodged.toLocaleString(), '#fcd34d');
+  drawRow('POWER-UPS', stats.powerupsCollected.toLocaleString(), '#c084fc');
 
   // Favorite rocket
   const usage = stats.rocketUsage;
