@@ -986,6 +986,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
         removeActiveEffect(state, 'shield');
         state.shieldHitTimer = 30;
         state.screenShake = { intensity: 4, duration: 15 };
+        state.asteroids = state.asteroids.filter(ast => ast !== a);
         // Shatter particles
         for (let i = 0; i < 12; i++) {
           const ang = Math.random() * Math.PI * 2;
@@ -1034,6 +1035,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
         removeActiveEffect(state, 'shield');
         state.shieldHitTimer = 30;
         state.screenShake = { intensity: 5, duration: 18 };
+        state.comets = state.comets.filter(comet => comet !== c);
         for (let i = 0; i < 12; i++) {
           const ang = Math.random() * Math.PI * 2;
           const sp = rand(1, 3);
