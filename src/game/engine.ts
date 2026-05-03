@@ -288,11 +288,12 @@ const POWERUP_DURATIONS: Record<PowerUpType, number> = {
   shield: 600,  // 10 seconds at 60fps
   magnet: 480,  // 8 seconds
   wormhole: 1,  // instant — consumed immediately
+  time_dilation: 420, // 7 seconds
 };
 
 function generatePowerUp(minX: number, planets: Planet[], canvasH: number): PowerUp | null {
-  const types: PowerUpType[] = ['shield', 'magnet', 'wormhole'];
-  const typeWeights = [0.40, 0.35, 0.25]; // shield most common, wormhole rarest
+  const types: PowerUpType[] = ['shield', 'magnet', 'wormhole', 'time_dilation'];
+  const typeWeights = [0.30, 0.25, 0.20, 0.25]; // Even out the distribution to make time dilation appear more often
   const roll = Math.random();
   let cumulative = 0;
   let type: PowerUpType = 'shield';
@@ -432,6 +433,7 @@ export function createInitialState(canvasH = 600): GameState {
     closeCallCooldown: 0,
     shieldHitTimer: 0,
     wormholeFlashTimer: 0,
+    timeDilationFlashTimer: 0,
     powerupsCollectedThisRun: 0,
     lifetimeStats: loadLifetimeStats(),
   };
@@ -650,6 +652,7 @@ export function updateVisualsOnly(state: GameState) {
   // Keep HUD timers decaying during game over
   if (state.shieldHitTimer > 0) state.shieldHitTimer -= 1;
   if (state.wormholeFlashTimer > 0) state.wormholeFlashTimer -= 1;
+  if (state.timeDilationFlashTimer > 0) state.timeDilationFlashTimer -= 1;
 }
 
 function hasActiveEffect(state: GameState, type: PowerUpType): boolean {
@@ -693,7 +696,7 @@ function activatePowerUp(state: GameState, type: PowerUpType): void {
     return;
   }
 
-  // Timed effects (shield, magnet): stack duration if already active
+  // Timed effects (shield, magnet, time_dilation): stack duration if already active
   const existing = state.activeEffects.find(e => e.type === type);
   const duration = POWERUP_DURATIONS[type];
   if (existing) {
@@ -701,6 +704,11 @@ function activatePowerUp(state: GameState, type: PowerUpType): void {
     existing.maxTimer = duration;
   } else {
     state.activeEffects.push({ type, timer: duration, maxTimer: duration });
+  }
+
+  if (type === 'time_dilation') {
+    state.timeDilationFlashTimer = 20;
+    state.screenShake = { intensity: 3, duration: 15 };
   }
 }
 
@@ -738,9 +746,10 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
     }
   }
 
-  // Shield / wormhole hit timers
+  // Shield / wormhole / time dilation hit timers
   if (state.shieldHitTimer > 0) state.shieldHitTimer -= 1;
   if (state.wormholeFlashTimer > 0) state.wormholeFlashTimer -= 1;
+  if (state.timeDilationFlashTimer > 0) state.timeDilationFlashTimer -= 1;
 
   // Active effect timers
   for (const e of state.activeEffects) {
@@ -748,11 +757,14 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   }
   state.activeEffects = state.activeEffects.filter(e => e.timer > 0);
 
+  const isTimeDilated = hasActiveEffect(state, 'time_dilation');
+  const timeScale = isTimeDilated ? 0.4 : 1.0;
+
   if (state.isOrbiting && state.orbitPlanetIndex >= 0) {
     const p = state.planets[state.orbitPlanetIndex];
     // Orbit speed inversely proportional to radius — small planets spin fast, big ones slow
     const orbitSpeed = ORBIT_SPEED_FACTOR / p.orbitRadius;
-    state.orbitAngle += orbitSpeed * state.orbitDirection;
+    state.orbitAngle += orbitSpeed * state.orbitDirection * timeScale;
 
     // Smooth capture transition: spiral into orbit over ~15 frames
     if (state.captureProgress < 1) {
@@ -822,19 +834,19 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
 
   // Slowly rotate planets for life
   for (const p of state.planets) {
-    p.rotation += 0.002;
+    p.rotation += 0.002 * timeScale;
   }
   for (const a of state.asteroids) {
-    a.rotation += a.spin;
+    a.rotation += a.spin * timeScale;
   }
 
   // Update comets — move, trail, remove off-screen
   for (const c of state.comets) {
     c.trail.push({ x: c.x, y: c.y });
     if (c.trail.length > 12) c.trail.shift();
-    c.x += c.vx;
-    c.y += c.vy;
-    c.rotation += c.spin;
+    c.x += c.vx * timeScale;
+    c.y += c.vy * timeScale;
+    c.rotation += c.spin * timeScale;
   }
   state.comets = state.comets.filter(c => {
     if (c.x < state.camera.x - 100 || c.y < -100 || c.y > canvasH + 100) return false;
@@ -930,6 +942,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
         shield: ['#38bdf8', '#7dd3fc', '#ffffff'],
         magnet: ['#fbbf24', '#fde68a', '#ffffff'],
         wormhole: ['#c084fc', '#e879f9', '#ffffff'],
+        time_dilation: ['#10b981', '#6ee7b7', '#ffffff'],
       };
       const colors = puColors[pu.type];
       for (let i = 0; i < 16; i++) {

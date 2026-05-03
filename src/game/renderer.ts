@@ -981,6 +981,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     shield: { primary: '#38bdf8', glow: 'rgba(56,189,248,0.5)', icon: '#e0f2fe' },
     magnet: { primary: '#fbbf24', glow: 'rgba(251,191,36,0.5)', icon: '#fef3c7' },
     wormhole: { primary: '#c084fc', glow: 'rgba(192,132,252,0.5)', icon: '#f3e8ff' },
+    time_dilation: { primary: '#10b981', glow: 'rgba(16,185,129,0.5)', icon: '#d1fae5' },
   };
   const c = colors[type];
 
@@ -1081,6 +1082,38 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     ctx.fillStyle = c.primary;
     ctx.beginPath();
     ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (type === 'time_dilation') {
+    // Hourglass icon
+    ctx.scale(1.2, 1.2);
+    ctx.fillStyle = c.primary;
+    ctx.beginPath();
+    ctx.moveTo(-5, -6);
+    ctx.lineTo(5, -6);
+    ctx.lineTo(1, 0);
+    ctx.lineTo(5, 6);
+    ctx.lineTo(-5, 6);
+    ctx.lineTo(-1, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sand inside
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-2, 4);
+    ctx.lineTo(2, 4);
+    ctx.lineTo(0, 1);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Top sand
+    ctx.beginPath();
+    ctx.moveTo(-3, -5);
+    ctx.lineTo(3, -5);
+    ctx.lineTo(0, -1);
+    ctx.closePath();
     ctx.fill();
   }
 
@@ -1439,6 +1472,26 @@ export function render(
     ctx.fillRect(0, 0, w, h);
   }
 
+  // Time dilation screen effect (greenish vignette and scanlines or just an edge glow)
+  const timeDilationEffect = state.activeEffects.find(e => e.type === 'time_dilation');
+  if (timeDilationEffect && timeDilationEffect.timer > 0) {
+    const tdAlpha = Math.min(1, timeDilationEffect.timer / 60) * 0.15;
+    
+    ctx.save();
+    // Green vignette
+    const tdGrad = ctx.createRadialGradient(w/2, h/2, h * 0.3, w/2, h/2, h * 0.8);
+    tdGrad.addColorStop(0, 'rgba(16, 185, 129, 0)');
+    tdGrad.addColorStop(1, `rgba(16, 185, 129, ${tdAlpha})`);
+    ctx.fillStyle = tdGrad;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  if (state.timeDilationFlashTimer > 0) {
+    ctx.fillStyle = `rgba(16, 185, 129, ${state.timeDilationFlashTimer / 20 * 0.4})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
   // HUD — glassmorphism score panel
   ctx.save();
   // Left panel bg
@@ -1708,6 +1761,7 @@ export function render(
       shield: { label: '🛡 SHIELD', color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
       magnet: { label: '🧲 MAGNET', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
       wormhole: { label: '🌀 WARP', color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
+      time_dilation: { label: '⏳ SLOW-MO', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
     };
 
     state.activeEffects.forEach((ef, i) => {

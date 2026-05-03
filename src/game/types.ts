@@ -5,7 +5,7 @@ export interface Vec2 {
 
 export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
 export type DeathReason = 'asteroid' | 'comet' | 'out-of-bounds' | 'fell-behind' | '';
-export type PowerUpType = 'shield' | 'magnet' | 'wormhole';
+export type PowerUpType = 'shield' | 'magnet' | 'wormhole' | 'time_dilation';
 
 export interface Planet {
   x: number;
@@ -183,6 +183,7 @@ export interface GameState {
   closeCallCooldown: number;
   shieldHitTimer: number;
   wormholeFlashTimer: number;
+  timeDilationFlashTimer: number;
   powerupsCollectedThisRun: number;
   lifetimeStats: LifetimeStats;
 }
