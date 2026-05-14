@@ -1748,6 +1748,56 @@ export function render(
     ctx.restore();
   }
 
+  // Precision landing indicator — "PERFECT!" or "GREAT!" with golden/silver glow
+  if (state.precisionBonusTimer > 0) {
+    const maxT = state.precisionBonusAmount >= 30 ? 90 : 70;
+    const elapsed = maxT - state.precisionBonusTimer;
+    const fadeIn = Math.min(1, elapsed / 8);
+    const fadeOut = Math.min(1, state.precisionBonusTimer / 25);
+    const alpha = Math.min(fadeIn, fadeOut);
+    const floatY = h * 0.28 - elapsed * 0.4;
+    const isPerfect = state.precisionBonusAmount >= 30;
+    const scale = 1 + Math.max(0, 1 - elapsed / 10) * 0.3; // Pop-in scale effect
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = 'center';
+
+    if (isPerfect) {
+      // Golden glow for PERFECT
+      ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
+      ctx.shadowBlur = 24;
+      ctx.font = `800 ${Math.round(26 * scale)}px "Inter", system-ui, sans-serif`;
+      ctx.letterSpacing = '5px';
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText('PERFECT!', w / 2, floatY);
+      ctx.letterSpacing = '0px';
+
+      // Bonus amount below
+      ctx.shadowBlur = 10;
+      ctx.font = '700 16px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText(`+${state.precisionBonusAmount}`, w / 2, floatY + 22);
+    } else {
+      // Silver glow for GREAT
+      ctx.shadowColor = 'rgba(186, 230, 253, 0.8)';
+      ctx.shadowBlur = 16;
+      ctx.font = `800 ${Math.round(22 * scale)}px "Inter", system-ui, sans-serif`;
+      ctx.letterSpacing = '4px';
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillText('GREAT!', w / 2, floatY);
+      ctx.letterSpacing = '0px';
+
+      // Bonus amount below
+      ctx.shadowBlur = 8;
+      ctx.font = '700 14px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillText(`+${state.precisionBonusAmount}`, w / 2, floatY + 20);
+    }
+
+    ctx.restore();
+  }
+
   // Active power-up effect HUD — small pills at the bottom-center
   if (state.activeEffects.length > 0) {
     const pillW = 110;
@@ -2633,6 +2683,7 @@ export function renderStats(
   drawRow('BEST COMBO', `x${stats.bestCombo}`, '#fbbf24');
   drawRow('COMETS DODGED', stats.cometsDodged.toLocaleString(), '#fcd34d');
   drawRow('POWER-UPS', stats.powerupsCollected.toLocaleString(), '#c084fc');
+  drawRow('PRECISION LANDINGS', (stats.totalPrecisionLandings || 0).toLocaleString(), '#fbbf24');
 
   // Favorite rocket
   const usage = stats.rocketUsage;

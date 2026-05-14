@@ -119,6 +119,7 @@ export interface LifetimeStats {
   bestCombo: number;
   cometsDodged: number;
   powerupsCollected: number;
+  totalPrecisionLandings: number;
   rocketUsage: { aerospace: number; classic: number; stealth: number };
 }
 
@@ -185,5 +186,11 @@ export interface GameState {
   wormholeFlashTimer: number;
   timeDilationFlashTimer: number;
   powerupsCollectedThisRun: number;
+  precisionTarget: number;
+  precisionIdealAngle: number;
+  precisionReleaseAngle: number;
+  precisionBonusTimer: number;
+  precisionBonusAmount: number;
+  precisionLandings: number;
   lifetimeStats: LifetimeStats;
 }

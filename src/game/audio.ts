@@ -345,6 +345,39 @@ export class AudioManager {
     source.stop(ctx.currentTime + duration);
   }
 
+  /** Satisfying crystalline bell for precision landings */
+  playPrecisionLanding(isPerfect: boolean) {
+    const ctx = this.ensureCtx();
+    if (!this.sfxGain) return;
+    // PERFECT: bright ascending triad (A5→C#6→E6)
+    // GREAT: shorter two-note chime
+    const notes = isPerfect ? [880, 1100, 1320] : [880, 1100];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const gain = ctx.createGain();
+      const t = ctx.currentTime + i * 0.07;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.2, t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      // Shimmering overtone for the crystalline feel
+      const shimmer = ctx.createOscillator();
+      shimmer.type = 'sine';
+      shimmer.frequency.value = freq * 2.005;
+      const shimGain = ctx.createGain();
+      shimGain.gain.setValueAtTime(0, t);
+      shimGain.gain.linearRampToValueAtTime(0.06, t + 0.015);
+      shimGain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.connect(gain).connect(this.sfxGain!);
+      shimmer.connect(shimGain).connect(this.sfxGain!);
+      osc.start(t);
+      shimmer.start(t);
+      osc.stop(t + 0.45);
+      shimmer.stop(t + 0.4);
+    });
+  }
+
   /** Combo escalation sound */
   playCombo(level: number) {
     const ctx = this.ensureCtx();

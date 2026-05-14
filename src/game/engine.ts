@@ -83,6 +83,7 @@ function defaultLifetimeStats(): LifetimeStats {
   return {
     totalFlights: 0, totalDistance: 0, totalEarths: 0, totalCombo: 0,
     totalCloseCalls: 0, bestCombo: 0, cometsDodged: 0, powerupsCollected: 0,
+    totalPrecisionLandings: 0,
     rocketUsage: { aerospace: 0, classic: 0, stealth: 0 },
   };
 }
@@ -435,6 +436,12 @@ export function createInitialState(canvasH = 600): GameState {
     wormholeFlashTimer: 0,
     timeDilationFlashTimer: 0,
     powerupsCollectedThisRun: 0,
+    precisionTarget: -1,
+    precisionIdealAngle: 0,
+    precisionReleaseAngle: 0,
+    precisionBonusTimer: 0,
+    precisionBonusAmount: 0,
+    precisionLandings: 0,
     lifetimeStats: loadLifetimeStats(),
   };
 }
@@ -500,6 +507,27 @@ export function releaseRocket(state: GameState): void {
       color: i % 2 === 0 ? exColor : '#ffffff',
       size: rand(1.5, 3.5),
     });
+  }
+
+  // Precision landing: find the next planet ahead and compute ideal release angle
+  state.precisionTarget = -1;
+  const rx = state.rocket.x;
+  const ry = state.rocket.y;
+  let closestDist = Infinity;
+  for (let i = 0; i < state.planets.length; i++) {
+    if (i === state.lastReleasedPlanet) continue;
+    const p = state.planets[i];
+    if (p.x <= rx) continue; // only consider planets ahead
+    const dist = Math.hypot(p.x - rx, p.y - ry);
+    if (dist < closestDist) {
+      closestDist = dist;
+      state.precisionTarget = i;
+    }
+  }
+  if (state.precisionTarget >= 0) {
+    const tp = state.planets[state.precisionTarget];
+    state.precisionIdealAngle = Math.atan2(tp.y - ry, tp.x - rx);
+    state.precisionReleaseAngle = tangentAngle;
   }
 }
 
@@ -591,6 +619,46 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
           });
         }
       }
+
+      // Precision landing detection — was this the planet we aimed at on release?
+      if (state.precisionTarget >= 0 && i === state.precisionTarget) {
+        let angleDiff = state.precisionReleaseAngle - state.precisionIdealAngle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        const absAngle = Math.abs(angleDiff);
+        if (absAngle < 0.1) {
+          // PERFECT — within ~5.7°
+          const bonus = Math.floor(30 * state.comboMultiplier);
+          state.comboBonusEarned += bonus;
+          state.precisionBonusAmount = bonus;
+          state.precisionBonusTimer = 90;
+          state.precisionLandings += 1;
+          state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
+          // Golden sparkle burst
+          const sparkleCount = state.settings.lowGraphics ? 10 : 20;
+          for (let k = 0; k < sparkleCount; k++) {
+            const a = Math.random() * Math.PI * 2;
+            const sp = rand(1, 3.5);
+            state.particles.push({
+              x: r.x, y: r.y,
+              vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+              life: 50, maxLife: 50,
+              color: k % 3 === 0 ? '#fbbf24' : k % 3 === 1 ? '#fde68a' : '#ffffff',
+              size: rand(2, 4.5),
+            });
+          }
+        } else if (absAngle < 0.2) {
+          // GREAT — within ~11.5° (smaller reward)
+          const bonus = Math.floor(15 * state.comboMultiplier);
+          state.comboBonusEarned += bonus;
+          state.precisionBonusAmount = bonus;
+          state.precisionBonusTimer = 70;
+          state.precisionLandings += 1;
+          state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
+        }
+      }
+      state.precisionTarget = -1;
+
       return true; // captured
     }
   }
@@ -653,6 +721,7 @@ export function updateVisualsOnly(state: GameState) {
   if (state.shieldHitTimer > 0) state.shieldHitTimer -= 1;
   if (state.wormholeFlashTimer > 0) state.wormholeFlashTimer -= 1;
   if (state.timeDilationFlashTimer > 0) state.timeDilationFlashTimer -= 1;
+  if (state.precisionBonusTimer > 0) state.precisionBonusTimer -= 1;
 }
 
 function hasActiveEffect(state: GameState, type: PowerUpType): boolean {
@@ -750,6 +819,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   if (state.shieldHitTimer > 0) state.shieldHitTimer -= 1;
   if (state.wormholeFlashTimer > 0) state.wormholeFlashTimer -= 1;
   if (state.timeDilationFlashTimer > 0) state.timeDilationFlashTimer -= 1;
+  if (state.precisionBonusTimer > 0) state.precisionBonusTimer -= 1;
 
   // Active effect timers
   for (const e of state.activeEffects) {
@@ -1123,6 +1193,7 @@ export function buildShareMessage(state: GameState): void {
   if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
   if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
   if (state.powerupsCollectedThisRun > 0) lines.push(`⚡ Power-ups: ${state.powerupsCollectedThisRun}`);
+  if (state.precisionLandings > 0) lines.push(`🎯 Precision Landings: ${state.precisionLandings}`);
   if (state.closeCalls > 0) lines.push(`😅 Close Calls: ${state.closeCalls}`);
 
   lines.push('');
@@ -1140,6 +1211,7 @@ export function updateLifetimeStatsOnDeath(state: GameState) {
   ls.totalCombo += state.comboBonusEarned;
   ls.totalCloseCalls += state.closeCalls;
   ls.bestCombo = Math.max(ls.bestCombo, state.maxCombo);
+  ls.totalPrecisionLandings = (ls.totalPrecisionLandings || 0) + state.precisionLandings;
   const rt = state.settings.rocketType as keyof typeof ls.rocketUsage;
   ls.rocketUsage[rt] = (ls.rocketUsage[rt] || 0) + 1;
   saveLifetimeStats(ls);
