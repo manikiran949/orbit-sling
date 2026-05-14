@@ -5,7 +5,7 @@ export interface Vec2 {
 
 export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
 export type DeathReason = 'asteroid' | 'comet' | 'out-of-bounds' | 'fell-behind' | '';
-export type PowerUpType = 'shield' | 'magnet' | 'wormhole' | 'time_dilation';
+export type PowerUpType = 'shield' | 'magnet' | 'wormhole' | 'time_dilation' | 'gravity_pulse';
 
 export interface Planet {
   x: number;
@@ -30,6 +30,8 @@ export interface Asteroid {
   rotation: number;
   vertices: number[];
   spin: number;
+  vx: number;
+  vy: number;
 }
 
 export interface Comet {
@@ -119,7 +121,6 @@ export interface LifetimeStats {
   bestCombo: number;
   cometsDodged: number;
   powerupsCollected: number;
-  totalPrecisionLandings: number;
   rocketUsage: { aerospace: number; classic: number; stealth: number };
 }
 
@@ -185,12 +186,7 @@ export interface GameState {
   shieldHitTimer: number;
   wormholeFlashTimer: number;
   timeDilationFlashTimer: number;
+  gravityPulseTimer: number;
   powerupsCollectedThisRun: number;
-  precisionTarget: number;
-  precisionIdealAngle: number;
-  precisionReleaseAngle: number;
-  precisionBonusTimer: number;
-  precisionBonusAmount: number;
-  precisionLandings: number;
   lifetimeStats: LifetimeStats;
 }

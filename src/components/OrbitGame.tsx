@@ -411,7 +411,6 @@ const OrbitGame = () => {
     let prevCloseCalls = 0;
     let prevPowerupCount = 0;
     let prevHadShield = false;
-    let prevPrecisionLandings = 0;
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -464,9 +463,6 @@ const OrbitGame = () => {
         prevPowerupCount = state.lifetimeStats.powerupsCollected;
         prevHadShield = false;
       }
-      if (prevPrecisionLandings > state.precisionLandings) {
-        prevPrecisionLandings = state.precisionLandings;
-      }
 
       if (state.phase === 'menu') {
         renderMenu(ctx, w, h, time, state.highScore, state.settings.rocketType || 'aerospace');
@@ -508,21 +504,17 @@ const OrbitGame = () => {
           }
           prevCloseCalls = state.closeCalls;
 
-          // Precision landing audio (fires when counter bumps)
-          if (state.precisionLandings > prevPrecisionLandings) {
-            const isPerfect = state.precisionBonusAmount >= 30;
-            audio.playPrecisionLanding(isPerfect);
-            vibrate(HAPTIC.themeUnlock);
-          }
-          prevPrecisionLandings = state.precisionLandings;
-
           // Power-up pickup audio
           if (state.lifetimeStats.powerupsCollected > prevPowerupCount) {
-            // Determine which type was just collected by checking wormhole flash or active effects
+            // Determine which type was just collected by checking flash timers or active effects
             if (state.wormholeFlashTimer > 25) {
               audio.playWormholeActivate();
+            } else if (state.gravityPulseTimer > 35) {
+              audio.playGravityPulse();
             } else if (state.activeEffects.some(e => e.type === 'magnet' && e.timer > 450)) {
               audio.playMagnetPickup();
+            } else if (state.activeEffects.some(e => e.type === 'time_dilation' && e.timer > 400)) {
+              audio.playShieldPickup(); // time dilation uses generic pickup
             } else {
               audio.playShieldPickup();
             }
@@ -645,3 +637,4 @@ const OrbitGame = () => {
 };
 
 export default OrbitGame;
+

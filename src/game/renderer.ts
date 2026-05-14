@@ -240,19 +240,19 @@ function drawEarth(ctx: CanvasRenderingContext2D, p: Planet) {
   ctx.clip();
 
   const lands = [
-    { x: -r*0.32, y: -r*0.3, s: r*0.1, a: 0.45 },
-    { x: -r*0.25, y: -r*0.2, s: r*0.12, a: 0.4 },
-    { x: -r*0.28, y: -r*0.1, s: r*0.08, a: 0.35 },
-    { x: -r*0.22, y: 0.0, s: r*0.07, a: 0.3 },
-    { x: -r*0.18, y: r*0.1, s: r*0.06, a: 0.25 },
-    { x: r*0.15, y: -r*0.25, s: r*0.09, a: 0.4 },
-    { x: r*0.25, y: -r*0.18, s: r*0.11, a: 0.45 },
-    { x: r*0.35, y: -r*0.12, s: r*0.08, a: 0.35 },
-    { x: r*0.28, y: -r*0.05, s: r*0.07, a: 0.3 },
-    { x: r*0.08, y: r*0.2, s: r*0.09, a: 0.4 },
-    { x: r*0.12, y: r*0.3, s: r*0.08, a: 0.35 },
-    { x: r*0.05, y: r*0.35, s: r*0.06, a: 0.25 },
-    { x: -r*0.05, y: -r*0.5, s: r*0.05, a: 0.3 },
+    { x: -r * 0.32, y: -r * 0.3, s: r * 0.1, a: 0.45 },
+    { x: -r * 0.25, y: -r * 0.2, s: r * 0.12, a: 0.4 },
+    { x: -r * 0.28, y: -r * 0.1, s: r * 0.08, a: 0.35 },
+    { x: -r * 0.22, y: 0.0, s: r * 0.07, a: 0.3 },
+    { x: -r * 0.18, y: r * 0.1, s: r * 0.06, a: 0.25 },
+    { x: r * 0.15, y: -r * 0.25, s: r * 0.09, a: 0.4 },
+    { x: r * 0.25, y: -r * 0.18, s: r * 0.11, a: 0.45 },
+    { x: r * 0.35, y: -r * 0.12, s: r * 0.08, a: 0.35 },
+    { x: r * 0.28, y: -r * 0.05, s: r * 0.07, a: 0.3 },
+    { x: r * 0.08, y: r * 0.2, s: r * 0.09, a: 0.4 },
+    { x: r * 0.12, y: r * 0.3, s: r * 0.08, a: 0.35 },
+    { x: r * 0.05, y: r * 0.35, s: r * 0.06, a: 0.25 },
+    { x: -r * 0.05, y: -r * 0.5, s: r * 0.05, a: 0.3 },
   ];
   for (const d of lands) {
     const cg = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.s);
@@ -269,13 +269,13 @@ function drawEarth(ctx: CanvasRenderingContext2D, p: Planet) {
   ctx.globalAlpha = 0.13;
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.ellipse(-r*0.35, -r*0.08, r*0.2, r*0.022, 0.15, 0, Math.PI * 2);
+  ctx.ellipse(-r * 0.35, -r * 0.08, r * 0.2, r * 0.022, 0.15, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(r*0.15, -r*0.3, r*0.16, r*0.018, -0.2, 0, Math.PI * 2);
+  ctx.ellipse(r * 0.15, -r * 0.3, r * 0.16, r * 0.018, -0.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(r*0.05, r*0.22, r*0.14, r*0.016, 0.1, 0, Math.PI * 2);
+  ctx.ellipse(r * 0.05, r * 0.22, r * 0.14, r * 0.016, 0.1, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.restore();
@@ -368,7 +368,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     const flameLen2 = 12 * flicker2;
 
     ctx.globalCompositeOperation = 'screen';
-    
+
     // Outer ion plume
     const outerFlame = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
     outerFlame.addColorStop(0, 'rgba(56, 189, 248, 0.9)');
@@ -405,13 +405,13 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
       ctx.lineTo(-12, 12 * yDir);
       ctx.lineTo(-10, 4 * yDir);
       ctx.closePath();
-      
+
       const wingGrad = ctx.createLinearGradient(-10, 3 * yDir, 0, 12 * yDir);
       wingGrad.addColorStop(0, '#f8fafc');
       wingGrad.addColorStop(1, '#94a3b8');
       ctx.fillStyle = wingGrad;
       ctx.fill();
-      
+
       // Racing stripe on the wing
       ctx.beginPath();
       ctx.moveTo(-2, 4 * yDir);
@@ -420,7 +420,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
       ctx.lineTo(-3.5, 4 * yDir);
       ctx.fillStyle = '#f97316'; // Vibrant orange
       ctx.fill();
-      
+
       // Wing outline
       ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 1;
@@ -453,7 +453,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     ctx.lineTo(-12, 4);
     ctx.bezierCurveTo(0, 5, 12, 4.5, 18, 0);
     ctx.closePath();
-    
+
     // Clean white glossy hull
     const hullGrad = ctx.createLinearGradient(-12, -5, 18, 5);
     hullGrad.addColorStop(0, '#e2e8f0');
@@ -462,7 +462,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     hullGrad.addColorStop(1, '#ffffff');
     ctx.fillStyle = hullGrad;
     ctx.fill();
-    
+
     // Dimensional under-shadow
     const hullUnder = ctx.createLinearGradient(0, 0, 0, 5);
     hullUnder.addColorStop(0, 'rgba(0,0,0,0)');
@@ -498,7 +498,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     ctx.lineTo(-4, -3.5);
     ctx.lineTo(1, -0.5);
     ctx.closePath();
-    
+
     const cockpitGrad = ctx.createLinearGradient(-4, -3.5, 10, -0.5);
     cockpitGrad.addColorStop(0, '#fcd34d');
     cockpitGrad.addColorStop(0.5, '#f59e0b');
@@ -666,7 +666,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     const flameLen2 = 12 * flicker2;
 
     ctx.globalCompositeOperation = 'screen';
-    
+
     // Outer ion plume
     const outerFlame = ctx.createLinearGradient(-10, 0, -10 - flameLen, 0);
     outerFlame.addColorStop(0, 'rgba(168, 85, 247, 0.9)'); // Purple
@@ -708,7 +708,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
       wingGrad.addColorStop(1, '#020617');
       ctx.fillStyle = wingGrad;
       ctx.fill();
-      
+
       // Wing edge highlight (neon purple)
       ctx.beginPath();
       ctx.moveTo(2, 4 * yDir);
@@ -727,7 +727,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     ctx.lineTo(-10, 3.5);
     ctx.bezierCurveTo(-2, 5.5, 10, 5.5, 18, 0);
     ctx.closePath();
-    
+
     // Metallic dark gradient for stealth hull
     const hullGrad = ctx.createLinearGradient(-10, -5, 18, 5);
     hullGrad.addColorStop(0, '#334155');
@@ -737,7 +737,7 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
     hullGrad.addColorStop(1, '#ffffff');
     ctx.fillStyle = hullGrad;
     ctx.fill();
-    
+
     // Dimensional under-shadow
     const hullUnder = ctx.createLinearGradient(0, 0, 0, 6);
     hullUnder.addColorStop(0, 'rgba(0,0,0,0)');
@@ -982,6 +982,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     magnet: { primary: '#fbbf24', glow: 'rgba(251,191,36,0.5)', icon: '#fef3c7' },
     wormhole: { primary: '#c084fc', glow: 'rgba(192,132,252,0.5)', icon: '#f3e8ff' },
     time_dilation: { primary: '#10b981', glow: 'rgba(16,185,129,0.5)', icon: '#d1fae5' },
+    gravity_pulse: { primary: '#818cf8', glow: 'rgba(129,140,248,0.5)', icon: '#e0e7ff' },
   };
   const c = colors[type];
 
@@ -999,7 +1000,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
   // Draw main icon
   ctx.save();
   ctx.translate(x, drawY);
-  
+
   // Subtle drop shadow for the icon itself to pop off the glow
   ctx.shadowColor = 'rgba(0,0,0,0.6)';
   ctx.shadowBlur = 4;
@@ -1015,11 +1016,11 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     ctx.quadraticCurveTo(-8, 6, -8, 0);
     ctx.quadraticCurveTo(-8, -5, 0, -7);
     ctx.closePath();
-    
+
     // Fill
     ctx.fillStyle = c.primary;
     ctx.fill();
-    
+
     // Checkmark inside
     ctx.shadowColor = 'transparent';
     ctx.beginPath();
@@ -1035,7 +1036,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
   } else if (type === 'magnet') {
     // Bold Magnet icon
     ctx.scale(1.3, 1.3);
-    
+
     // Horseshoe body
     ctx.beginPath();
     ctx.arc(0, 0, 5, 0, Math.PI, true); // Top curve
@@ -1046,7 +1047,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     ctx.lineTo(2, 4);
     ctx.lineTo(5, 4);
     ctx.closePath();
-    
+
     ctx.fillStyle = c.primary;
     ctx.fill();
 
@@ -1061,7 +1062,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     // Clean swirling star portal
     ctx.scale(1.2, 1.2);
     ctx.rotate(rotation * 2);
-    
+
     ctx.fillStyle = c.primary;
     ctx.beginPath();
     // 4-point swirling star
@@ -1107,7 +1108,7 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     ctx.lineTo(0, 1);
     ctx.closePath();
     ctx.fill();
-    
+
     // Top sand
     ctx.beginPath();
     ctx.moveTo(-3, -5);
@@ -1115,6 +1116,29 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
     ctx.lineTo(0, -1);
     ctx.closePath();
     ctx.fill();
+
+  } else if (type === 'gravity_pulse') {
+    // Concentric expanding rings icon
+    ctx.scale(1.2, 1.2);
+    ctx.strokeStyle = c.primary;
+    ctx.lineWidth = 1.5;
+
+    // Inner dot
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Concentric rings
+    ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   ctx.restore();
@@ -1441,11 +1465,11 @@ export function render(
     // High-tech projected trajectory arc (replaces the clunky arrow)
     ctx.save();
     ctx.translate(p.x, p.y);
-    
+
     const gap = 0.08 * state.orbitDirection;     // Gap from the nose
     const mid = 0.32 * state.orbitDirection;     // Main bright arc
     const tail = 0.45 * state.orbitDirection;    // Fading tail dot
-    
+
     ctx.beginPath();
     ctx.arc(0, 0, p.orbitRadius, state.orbitAngle + gap, state.orbitAngle + mid, state.orbitDirection < 0);
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
@@ -1459,7 +1483,7 @@ export function render(
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.stroke();
-    
+
     ctx.restore();
   }
 
@@ -1476,10 +1500,10 @@ export function render(
   const timeDilationEffect = state.activeEffects.find(e => e.type === 'time_dilation');
   if (timeDilationEffect && timeDilationEffect.timer > 0) {
     const tdAlpha = Math.min(1, timeDilationEffect.timer / 60) * 0.15;
-    
+
     ctx.save();
     // Green vignette
-    const tdGrad = ctx.createRadialGradient(w/2, h/2, h * 0.3, w/2, h/2, h * 0.8);
+    const tdGrad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.8);
     tdGrad.addColorStop(0, 'rgba(16, 185, 129, 0)');
     tdGrad.addColorStop(1, `rgba(16, 185, 129, ${tdAlpha})`);
     ctx.fillStyle = tdGrad;
@@ -1490,6 +1514,36 @@ export function render(
   if (state.timeDilationFlashTimer > 0) {
     ctx.fillStyle = `rgba(16, 185, 129, ${state.timeDilationFlashTimer / 20 * 0.4})`;
     ctx.fillRect(0, 0, w, h);
+  }
+
+  // Gravity pulse shockwave ring — expands outward from the rocket
+  if (state.gravityPulseTimer > 0) {
+    const progress = 1 - state.gravityPulseTimer / 40; // 0 → 1 over 40 frames
+    const maxRadius = 500;
+    const ringRadius = maxRadius * progress;
+    const alpha = (1 - progress) * 0.7;
+    const cx = state.camera.x;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(state.rocket.x - cx, state.rocket.y, ringRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#818cf8';
+    ctx.lineWidth = 4 * (1 - progress);
+    ctx.stroke();
+    // Inner glow ring
+    ctx.beginPath();
+    ctx.arc(state.rocket.x - cx, state.rocket.y, ringRadius * 0.85, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(167, 139, 250, 0.5)';
+    ctx.lineWidth = 8 * (1 - progress);
+    ctx.stroke();
+    // Flash overlay (brief)
+    if (state.gravityPulseTimer > 30) {
+      ctx.fillStyle = `rgba(129, 140, 248, ${(state.gravityPulseTimer - 30) / 10 * 0.15})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
   }
 
   // HUD — glassmorphism score panel
@@ -1748,56 +1802,6 @@ export function render(
     ctx.restore();
   }
 
-  // Precision landing indicator — "PERFECT!" or "GREAT!" with golden/silver glow
-  if (state.precisionBonusTimer > 0) {
-    const maxT = state.precisionBonusAmount >= 30 ? 90 : 70;
-    const elapsed = maxT - state.precisionBonusTimer;
-    const fadeIn = Math.min(1, elapsed / 8);
-    const fadeOut = Math.min(1, state.precisionBonusTimer / 25);
-    const alpha = Math.min(fadeIn, fadeOut);
-    const floatY = h * 0.28 - elapsed * 0.4;
-    const isPerfect = state.precisionBonusAmount >= 30;
-    const scale = 1 + Math.max(0, 1 - elapsed / 10) * 0.3; // Pop-in scale effect
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.textAlign = 'center';
-
-    if (isPerfect) {
-      // Golden glow for PERFECT
-      ctx.shadowColor = 'rgba(251, 191, 36, 0.9)';
-      ctx.shadowBlur = 24;
-      ctx.font = `800 ${Math.round(26 * scale)}px "Inter", system-ui, sans-serif`;
-      ctx.letterSpacing = '5px';
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillText('PERFECT!', w / 2, floatY);
-      ctx.letterSpacing = '0px';
-
-      // Bonus amount below
-      ctx.shadowBlur = 10;
-      ctx.font = '700 16px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = '#fde68a';
-      ctx.fillText(`+${state.precisionBonusAmount}`, w / 2, floatY + 22);
-    } else {
-      // Silver glow for GREAT
-      ctx.shadowColor = 'rgba(186, 230, 253, 0.8)';
-      ctx.shadowBlur = 16;
-      ctx.font = `800 ${Math.round(22 * scale)}px "Inter", system-ui, sans-serif`;
-      ctx.letterSpacing = '4px';
-      ctx.fillStyle = '#bae6fd';
-      ctx.fillText('GREAT!', w / 2, floatY);
-      ctx.letterSpacing = '0px';
-
-      // Bonus amount below
-      ctx.shadowBlur = 8;
-      ctx.font = '700 14px "Inter", system-ui, sans-serif';
-      ctx.fillStyle = '#e0f2fe';
-      ctx.fillText(`+${state.precisionBonusAmount}`, w / 2, floatY + 20);
-    }
-
-    ctx.restore();
-  }
-
   // Active power-up effect HUD — small pills at the bottom-center
   if (state.activeEffects.length > 0) {
     const pillW = 110;
@@ -1812,6 +1816,7 @@ export function render(
       magnet: { label: '🧲 MAGNET', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
       wormhole: { label: '🌀 WARP', color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
       time_dilation: { label: '⏳ SLOW-MO', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+      gravity_pulse: { label: '💠 PULSE', color: '#818cf8', bg: 'rgba(129,140,248,0.12)' },
     };
 
     state.activeEffects.forEach((ef, i) => {
@@ -1987,7 +1992,7 @@ export function renderMenu(
   rg.addColorStop(1, 'rgba(56,189,248,0)');
   ctx.fillStyle = rg;
   ctx.fillRect(ox - 14, oy - 14, 28, 28);
-  
+
   // Draw sleek miniature rocket
   ctx.save();
   ctx.translate(ox, oy);
@@ -1998,7 +2003,7 @@ export function renderMenu(
 
   // Title - massive, clean typography
   ctx.textAlign = 'center';
-  
+
   // Title glow
   ctx.save();
   ctx.shadowColor = 'rgba(56,189,248,0.4)';
@@ -2114,8 +2119,8 @@ export function renderMenu(
     ctx.save();
     // Position to the left of the central planet
     const legendX = (w / 2) - Math.min(380, w * 0.45);
-    const legendY = py - 30;
-    
+    const legendY = py - 60; // Shifted up slightly to fit 5 items
+
     ctx.textAlign = 'left';
     ctx.font = '700 11px "Inter", system-ui, sans-serif';
     ctx.letterSpacing = '2px';
@@ -2126,13 +2131,21 @@ export function renderMenu(
       const y = legendY + yOffset;
       // Draw a stationary/slow-bobbing powerup icon
       drawPowerUp(ctx, legendX + 15, y + 6, type, 11, yOffset, time);
-      
+
       ctx.textAlign = 'left';
       ctx.font = '800 12px "Inter", system-ui, sans-serif';
       ctx.letterSpacing = '1px';
-      ctx.fillStyle = type === 'shield' ? '#38bdf8' : type === 'magnet' ? '#fbbf24' : '#c084fc';
-      ctx.fillText(title, legendX + 40, y);
       
+      let titleColor = '#ffffff';
+      if (type === 'shield') titleColor = '#38bdf8';
+      else if (type === 'magnet') titleColor = '#fbbf24';
+      else if (type === 'wormhole') titleColor = '#c084fc';
+      else if (type === 'time_dilation') titleColor = '#10b981';
+      else if (type === 'gravity_pulse') titleColor = '#818cf8';
+
+      ctx.fillStyle = titleColor;
+      ctx.fillText(title, legendX + 40, y);
+
       ctx.font = '500 11px "Inter", system-ui, sans-serif';
       ctx.letterSpacing = '0.5px';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
@@ -2140,8 +2153,10 @@ export function renderMenu(
     };
 
     drawLegendItem(0, 'shield', 'SHIELD', 'Absorbs 1 fatal impact');
-    drawLegendItem(45, 'magnet', 'MAGNET', 'Widens orbit capture zone');
-    drawLegendItem(90, 'wormhole', 'WORMHOLE', 'Warps 500m forward');
+    drawLegendItem(40, 'magnet', 'MAGNET', 'Widens orbit capture zone');
+    drawLegendItem(80, 'wormhole', 'WORMHOLE', 'Warps 500m forward');
+    drawLegendItem(120, 'time_dilation', 'SLOW-MO', 'Slows time by 60%');
+    drawLegendItem(160, 'gravity_pulse', 'GRAVITY PULSE', 'Pushes hazards away');
 
     ctx.restore();
   }
@@ -2187,7 +2202,7 @@ export function renderGameOver(
   const cardH = GAME_OVER_LAYOUT.cardHeight;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 + GAME_OVER_LAYOUT.cardYOffset;
-  
+
   // Outer subtle glow for the panel
   ctx.save();
   ctx.shadowColor = 'rgba(10, 14, 36, 0.9)';
@@ -2229,7 +2244,7 @@ export function renderGameOver(
   ctx.letterSpacing = '-2px';
   ctx.fillText(`${score}`, w / 2, cardY + 138);
   ctx.letterSpacing = '0px';
-  
+
   ctx.font = '600 12px "Inter", system-ui, sans-serif';
   ctx.letterSpacing = '4px';
   ctx.fillStyle = 'rgba(186, 230, 253, 0.4)';
@@ -2683,7 +2698,6 @@ export function renderStats(
   drawRow('BEST COMBO', `x${stats.bestCombo}`, '#fbbf24');
   drawRow('COMETS DODGED', stats.cometsDodged.toLocaleString(), '#fcd34d');
   drawRow('POWER-UPS', stats.powerupsCollected.toLocaleString(), '#c084fc');
-  drawRow('PRECISION LANDINGS', (stats.totalPrecisionLandings || 0).toLocaleString(), '#fbbf24');
 
   // Favorite rocket
   const usage = stats.rocketUsage;
