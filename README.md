@@ -11,12 +11,15 @@ A fast-paced, physics-based arcade game built with React and HTML5 Canvas. Navig
 
 ## Features
 
-- **Procedural Universe:** Endless, procedurally generated planets (Earths, Gas Giants, Lava, Ice) and cosmic hazards.
-- **Dynamic Physics:** Smooth orbital mechanics, momentum multipliers, and combo timers.
-- **Procedural Audio:** All sounds and music are synthesized entirely via the Web Audio API without requiring any external audio assets.
+- **Procedural Universe:** Endless, procedurally generated planets (Earths, Gas Giants, Lava, Ice) and cosmic hazards (Asteroids, Comets).
+- **Precision Landings:** Master the timing! Release at the perfect angle to hit the next planet dead-on for "PERFECT" or "GREAT" rating bonuses.
+- **Power-ups & Abilities:** Collect shields, magnets, wormholes, and time dilation power-ups to survive longer and boost your score.
+- **Dynamic Physics:** Smooth orbital mechanics, momentum multipliers, and an escalating combo system that rewards speed.
+- **Procedural Audio:** All sounds, music layers, and crystal bell chimes are synthesized entirely via the Web Audio API without requiring any external audio assets.
 - **Haptic Feedback:** Includes tactile feedback on supported mobile devices using the Native Vibrate API (`navigator.vibrate`) for deep immersion.
 - **Premium Aesthetics:** Glassmorphic UI overlays rendered directly on the canvas, dynamic starfields, interactive cosmic backgrounds, and rich particle systems.
-- **Player Settings:** Built-in support for multiple rocket types (Aerospace, Classic, Stealth), customizable volume settings, low graphics mode, and reduced motion toggles.
+- **Player Progression:** Tracks lifetime stats across runs including total distance, best combos, comets dodged, and precision landings.
+- **Player Settings:** Built-in support for multiple rocket skins (Aerospace, Classic, Stealth), customizable volume settings, low graphics mode, and reduced motion toggles.
 - **Share Your Score:** Built-in social sharing (like Wordle) using seamless clipboard integration to challenge your friends.
 
 ## Tech Stack
