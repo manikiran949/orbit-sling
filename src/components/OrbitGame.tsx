@@ -1,9 +1,11 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { createInitialState, releaseRocket, update, togglePause, saveSettings, updateVisualsOnly, updateLifetimeStatsOnDeath } from '@/game/engine';
-import { render, renderMenu, renderGameOver, renderPause, renderStats, getPauseButtonCenter, getMuteButtonGeom, getRetryButtonBounds, getShareButtonBounds, getStatsButtonBounds, getStatsBackButtonBounds } from '@/game/renderer';
+import { render, renderMenu, renderGameOver, renderPause, renderStats, getPauseButtonCenter, getMuteButtonGeom, getRetryButtonBounds, getShareButtonBounds, getStatsButtonBounds, getStatsBackButtonBounds, getLeaderboardButtonBounds } from '@/game/renderer';
 import { GameState } from '@/game/types';
 import { audio } from '@/game/audio';
 import { vibrate, HAPTIC } from '@/game/haptics';
+import { LeaderboardOverlay } from './LeaderboardOverlay';
+import { SubmitScoreOverlay } from './SubmitScoreOverlay';
 
 type PauseSliderTarget = 'music' | 'sfx';
 
@@ -20,6 +22,10 @@ const OrbitGame = () => {
   const countUpTickRef = useRef<number>(0);
   const gameOverWasNewHighRef = useRef<boolean>(false);
   const deathTipSeedRef = useRef<number>(0);
+
+  // Sync phase to React state to mount HTML overlays
+  const [phaseState, setPhaseState] = useState<GameState['phase']>('menu');
+  const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
 
   const COUNT_UP_DURATION_MS = 1500;
   const COUNT_UP_TICK_MS = 200;
@@ -121,6 +127,14 @@ const OrbitGame = () => {
           saveSettings(state.settings);
           audio.playClick();
           updateVisualsOnly(state);
+          return;
+        }
+
+        // Leaderboard button
+        const lbBtn = getLeaderboardButtonBounds(w, h);
+        if (mx >= lbBtn.x && mx <= lbBtn.x + lbBtn.width && my >= lbBtn.y && my <= lbBtn.y + lbBtn.height) {
+          state.phase = 'leaderboard';
+          audio.playClick();
           return;
         }
       }
@@ -623,16 +637,44 @@ const OrbitGame = () => {
     return () => cancelAnimationFrame(animRef.current);
   }, []);
 
+  useEffect(() => {
+    // Keep React state in sync with game engine phase (poll every 100ms)
+    const interval = setInterval(() => {
+      if (stateRef.current.phase !== phaseState) {
+        setPhaseState(stateRef.current.phase);
+        if (stateRef.current.phase !== 'gameover') {
+          setHasSubmittedScore(false);
+        }
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [phaseState]);
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 touch-none cursor-pointer"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onPointerLeave={() => { mousePosRef.current = null; }}
-    />
+    <div className="relative w-screen h-screen overflow-hidden bg-black select-none font-sans text-white">
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 touch-none cursor-pointer"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={() => { mousePosRef.current = null; }}
+      />
+      {phaseState === 'leaderboard' && (
+        <LeaderboardOverlay onClose={() => {
+          stateRef.current.phase = 'menu';
+          setPhaseState('menu');
+          audio.playClick();
+        }} />
+      )}
+      {phaseState === 'gameover' && !hasSubmittedScore && stateRef.current.score > 0 && (
+        <SubmitScoreOverlay 
+          state={stateRef.current} 
+          onSubmitted={() => setHasSubmittedScore(true)} 
+        />
+      )}
+    </div>
   );
 };
 

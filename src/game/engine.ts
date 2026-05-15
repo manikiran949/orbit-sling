@@ -67,6 +67,7 @@ function loadSettings(): GameSettings {
     rocketType: 'aerospace',
     muted: false,
     reducedMotion: false,
+    playerName: '',
   };
   try {
     const s = localStorage.getItem('orbitSettings');

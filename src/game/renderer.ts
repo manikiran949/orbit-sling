@@ -2161,6 +2161,25 @@ export function renderMenu(
     ctx.restore();
   }
 
+  // Leaderboard Button
+  const lbBtn = getLeaderboardButtonBounds(w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(lbBtn.x, lbBtn.y, lbBtn.width, lbBtn.height, lbBtn.height / 2);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.font = '700 13px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '2px';
+  ctx.fillStyle = '#bae6fd';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 LEADERBOARD', lbBtn.x + lbBtn.width / 2, lbBtn.y + lbBtn.height / 2);
+  ctx.restore();
+
   if (highScore > 0) {
     ctx.font = `700 ${Math.round(13 * verticalScale)}px "Inter", system-ui, sans-serif`;
     ctx.letterSpacing = '2px';
@@ -2620,6 +2639,18 @@ export function getStatsBackButtonBounds(w: number, h: number): { x: number; y: 
   const cardH = 450;
   const cardY = (h - cardH) / 2 - 10;
   return { x: (w - btnW) / 2, y: cardY + cardH + 16, width: btnW, height: 38 };
+}
+
+export function getLeaderboardButtonBounds(w: number, h: number) {
+  const py = h / 2 + 10;
+  const verticalScale = Math.max(0.85, Math.min(1.1, h / 800));
+  const selectorY = py + 160 * verticalScale + 110 * verticalScale;
+  const pillH = 104 * verticalScale;
+  const y = selectorY + pillH / 2 + 35 * verticalScale;
+  
+  const width = 200;
+  const height = 44;
+  return { x: w / 2 - width / 2, y, width, height };
 }
 
 export function renderStats(

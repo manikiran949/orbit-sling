@@ -105,6 +105,7 @@ export interface GameSettings {
   rocketType: 'aerospace' | 'classic' | 'stealth';
   muted: boolean;
   reducedMotion: boolean;
+  playerName: string;
 }
 
 export interface ScreenShake {
@@ -160,7 +161,7 @@ export interface GameState {
   captureStartDist: number;
   lastReleasedPlanet: number;
   difficulty: number;
-  phase: 'menu' | 'playing' | 'gameover' | 'stats';
+  phase: 'menu' | 'playing' | 'gameover' | 'stats' | 'leaderboard';
   scoreBonus: number;
   scoreBonusTimer: number;
   scoreBonusLabel: 'combo' | 'earth' | '';
