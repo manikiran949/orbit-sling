@@ -2642,15 +2642,9 @@ export function getStatsBackButtonBounds(w: number, h: number): { x: number; y: 
 }
 
 export function getLeaderboardButtonBounds(w: number, h: number) {
-  const py = h / 2 + 10;
-  const verticalScale = Math.max(0.85, Math.min(1.1, h / 800));
-  const selectorY = py + 160 * verticalScale + 110 * verticalScale;
-  const pillH = 104 * verticalScale;
-  const y = selectorY + pillH / 2 + 35 * verticalScale;
-  
-  const width = 200;
-  const height = 44;
-  return { x: w / 2 - width / 2, y, width, height };
+  const width = 160;
+  const height = 40;
+  return { x: w - width - 20, y: 20, width, height };
 }
 
 export function renderStats(
