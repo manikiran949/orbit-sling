@@ -55,10 +55,10 @@ export function getShareButtonBounds(w: number, h: number): { x: number; y: numb
 export function getStatsButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
   const btnW = 100;
   return {
-    x: (w - btnW) / 2,
-    y: getButtonRowY(h) + GAME_OVER_LAYOUT.buttonHeight + 14,
+    x: 20,
+    y: 20,
     width: btnW,
-    height: 30,
+    height: 36,
   };
 }
 
@@ -2448,22 +2448,23 @@ export function renderGameOver(
   ctx.textBaseline = 'alphabetic';
   ctx.restore();
 
-  // Stats pill button — small, below retry/share
+  // Stats pill button — top-left corner
   const statsBtn = getStatsButtonBounds(w, h);
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(statsBtn.x, statsBtn.y, statsBtn.width, statsBtn.height, statsBtn.height / 2);
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
   ctx.lineWidth = 1;
   ctx.stroke();
-  ctx.font = '600 10px "Inter", system-ui, sans-serif';
-  ctx.letterSpacing = '2px';
-  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+  
+  ctx.font = 'bold 13px "Inter", system-ui, sans-serif';
+  ctx.letterSpacing = '1px';
+  ctx.fillStyle = '#38bdf8';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('STATS', statsBtn.x + statsBtn.width / 2, statsBtn.y + statsBtn.height / 2);
+  ctx.fillText('📊 STATS', statsBtn.x + statsBtn.width / 2, statsBtn.y + statsBtn.height / 2);
   ctx.textBaseline = 'alphabetic';
   ctx.letterSpacing = '0px';
   ctx.restore();
@@ -2635,10 +2636,8 @@ export function renderPause(
 }
 
 export function getStatsBackButtonBounds(w: number, h: number): { x: number; y: number; width: number; height: number } {
-  const btnW = 140;
-  const cardH = 450;
-  const cardY = (h - cardH) / 2 - 10;
-  return { x: (w - btnW) / 2, y: cardY + cardH + 16, width: btnW, height: 38 };
+  const btnW = 120;
+  return { x: 20, y: 20, width: btnW, height: 38 };
 }
 
 export function getLeaderboardButtonBounds(w: number, h: number) {
