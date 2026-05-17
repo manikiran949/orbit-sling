@@ -460,7 +460,7 @@ const OrbitGame = () => {
       const h = window.innerHeight;
       frameRef.current += 1;
 
-      if (state.phase !== 'gameover' && gameOverStartRef.current >= 0) {
+      if ((state.phase === 'playing' || state.phase === 'menu') && gameOverStartRef.current >= 0) {
         gameOverStartRef.current = -1;
         countUpTickRef.current = 0;
         gameOverWasNewHighRef.current = false;
