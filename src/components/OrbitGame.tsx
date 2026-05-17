@@ -87,6 +87,7 @@ const OrbitGame = () => {
   }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     initAudio();
     draggingRef.current = null;
@@ -666,6 +667,7 @@ const OrbitGame = () => {
       <canvas
         ref={canvasRef}
         className="absolute inset-0 touch-none cursor-pointer"
+        onContextMenu={(e) => e.preventDefault()}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
