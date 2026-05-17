@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- The "O" Slingshot Logo -->
+  <rect width="100" height="100" rx="24" fill="#0f172a" />
+  
+  <!-- Orange swoosh forming an incomplete 'O' -->
+  <path d="M 60 16 A 34 34 0 1 0 84 50" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round" />
+  
+  <!-- Blue Rocket launching out of the 'O' -->
+  <circle cx="84" cy="50" r="10" fill="#38bdf8" />
+  <path d="M 84 50 L 96 26" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round" />
+  <polygon points="86,22 100,12 98,28" fill="#38bdf8" />
+</svg>
