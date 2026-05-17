@@ -22,6 +22,7 @@ const OrbitGame = () => {
   const countUpTickRef = useRef<number>(0);
   const gameOverWasNewHighRef = useRef<boolean>(false);
   const deathTipSeedRef = useRef<number>(0);
+  const leaderboardSourceRef = useRef<GameState['phase']>('menu');
 
   // Sync phase to React state to mount HTML overlays
   const [phaseState, setPhaseState] = useState<GameState['phase']>('menu');
@@ -133,6 +134,7 @@ const OrbitGame = () => {
         // Leaderboard button
         const lbBtn = getLeaderboardButtonBounds(w, h);
         if (mx >= lbBtn.x && mx <= lbBtn.x + lbBtn.width && my >= lbBtn.y && my <= lbBtn.y + lbBtn.height) {
+          leaderboardSourceRef.current = 'menu';
           state.phase = 'leaderboard';
           audio.playClick();
           return;
@@ -167,6 +169,15 @@ const OrbitGame = () => {
         const statsBtn = getStatsButtonBounds(ww, hh);
         if (mx >= statsBtn.x && mx <= statsBtn.x + statsBtn.width && my >= statsBtn.y && my <= statsBtn.y + statsBtn.height) {
           state.phase = 'stats';
+          audio.playClick();
+          return;
+        }
+
+        // Leaderboard button
+        const lbBtn = getLeaderboardButtonBounds(ww, hh);
+        if (mx >= lbBtn.x && mx <= lbBtn.x + lbBtn.width && my >= lbBtn.y && my <= lbBtn.y + lbBtn.height) {
+          leaderboardSourceRef.current = 'gameover';
+          state.phase = 'leaderboard';
           audio.playClick();
           return;
         }
@@ -597,7 +608,7 @@ const OrbitGame = () => {
         }
       } else if (state.phase === 'stats') {
         renderStats(ctx, w, h, state.lifetimeStats);
-      } else {
+      } else if (state.phase === 'gameover') {
         if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
@@ -663,8 +674,8 @@ const OrbitGame = () => {
       />
       {phaseState === 'leaderboard' && (
         <LeaderboardOverlay onClose={() => {
-          stateRef.current.phase = 'menu';
-          setPhaseState('menu');
+          stateRef.current.phase = leaderboardSourceRef.current;
+          setPhaseState(leaderboardSourceRef.current);
           audio.playClick();
         }} />
       )}

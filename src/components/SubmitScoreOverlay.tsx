@@ -30,7 +30,7 @@ export const SubmitScoreOverlay: React.FC<SubmitScoreOverlayProps> = ({ state, o
       player_name: cleanName,
       score: state.score,
       distance: state.distanceMeters,
-      max_combo: state.comboBonusEarned, // Wait, we should track maxCombo in GameState. For now, comboBonusEarned is an okay proxy, or we can use 0 if not tracked.
+      max_combo: state.maxCombo,
       rocket_type: state.settings.rocketType,
     };
 

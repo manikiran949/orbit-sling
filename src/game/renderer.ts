@@ -2468,6 +2468,24 @@ export function renderGameOver(
   ctx.textBaseline = 'alphabetic';
   ctx.letterSpacing = '0px';
   ctx.restore();
+
+  // Leaderboard Button
+  const lbBtn = getLeaderboardButtonBounds(w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(lbBtn.x, lbBtn.y, lbBtn.width, lbBtn.height, lbBtn.height / 2);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = `bold 13px 'Inter', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 LEADERBOARD', lbBtn.x + lbBtn.width / 2, lbBtn.y + lbBtn.height / 2);
+  ctx.restore();
 }
 
 export function renderPause(
