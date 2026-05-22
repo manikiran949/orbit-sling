@@ -505,6 +505,44 @@ export class AudioManager {
     get isPlaying() {
         return this.musicPlaying;
     }
+
+    /** Majestic ascending arpeggio chime for golden planet capture. */
+    playGoldenCapture() {
+        const ctx = this.ensureCtx();
+        if (!this.sfxGain) return;
+
+        // C5 → E5 → G5 → C6 ascending arpeggio
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        const noteDelay = 0.08;
+
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            const startT = ctx.currentTime + i * noteDelay;
+            osc.frequency.setValueAtTime(freq, startT);
+
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0, startT);
+            gain.gain.linearRampToValueAtTime(0.2, startT + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startT + 0.4);
+
+            // Slight shimmer with a triangle harmonic
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(freq * 2, startT);
+            const g2 = ctx.createGain();
+            g2.gain.setValueAtTime(0, startT);
+            g2.gain.linearRampToValueAtTime(0.06, startT + 0.02);
+            g2.gain.exponentialRampToValueAtTime(0.001, startT + 0.35);
+
+            osc.connect(gain).connect(this.sfxGain!);
+            osc2.connect(g2).connect(this.sfxGain!);
+            osc.start(startT);
+            osc.stop(startT + 0.45);
+            osc2.start(startT);
+            osc2.stop(startT + 0.4);
+        });
+    }
 }
 
 export const audio = new AudioManager();

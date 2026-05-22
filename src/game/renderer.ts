@@ -802,9 +802,173 @@ function drawRocketShip(ctx: CanvasRenderingContext2D, time: number, type: 'aero
   }
 }
 
+function drawGoldenPlanet(ctx: CanvasRenderingContext2D, p: Planet, time: number) {
+  const r = p.radius;
+
+  // Intense multi-layered outer glow
+  const pulse = 0.85 + 0.15 * Math.sin(time * 0.003);
+  const glowRadius = r * 4.5 * pulse;
+  const outerGlow = ctx.createRadialGradient(p.x, p.y, r * 0.5, p.x, p.y, glowRadius);
+  outerGlow.addColorStop(0, 'rgba(255, 230, 100, 0.45)');
+  outerGlow.addColorStop(0.2, 'rgba(255, 190, 0, 0.25)');
+  outerGlow.addColorStop(0.5, 'rgba(218, 100, 10, 0.08)');
+  outerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = outerGlow;
+  ctx.fillRect(p.x - glowRadius, p.y - glowRadius, glowRadius * 2, glowRadius * 2);
+
+  // Ethereal spinning runes / halo (replaces the simple motes)
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(time * 0.0015);
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([12, 8, 4, 8]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 1.8 + Math.sin(time * 0.005) * 4, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  ctx.rotate(-time * 0.0025);
+  ctx.strokeStyle = 'rgba(255, 230, 150, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([40, 20]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 2.2, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Majestic lens flare crossing the planet
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  const flareW = r * 6 * pulse;
+  const flareH = r * 0.15;
+  ctx.rotate(-0.1); // slight tilt
+  const flareGrad = ctx.createLinearGradient(-flareW/2, 0, flareW/2, 0);
+  flareGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  flareGrad.addColorStop(0.4, 'rgba(255, 220, 100, 0.4)');
+  flareGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.9)');
+  flareGrad.addColorStop(0.6, 'rgba(255, 220, 100, 0.4)');
+  flareGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = flareGrad;
+  ctx.fillRect(-flareW/2, -flareH/2, flareW, flareH);
+  ctx.restore();
+
+  // Planet body — Luminous molten gold core
+  const bodyGrad = ctx.createRadialGradient(
+    p.x - r * 0.2, p.y - r * 0.2, r * 0.1,
+    p.x, p.y, r
+  );
+  bodyGrad.addColorStop(0, '#FFFFFF');    // Burning white hot
+  bodyGrad.addColorStop(0.15, '#FFF2AA'); // Luminous gold
+  bodyGrad.addColorStop(0.4, '#FFC000');  // Rich gold
+  bodyGrad.addColorStop(0.7, '#D35400');  // Deep amber/orange
+  bodyGrad.addColorStop(1, '#5C2400');    // Very dark rim
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // Dynamic surface plasma (swirling inner texture)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r * 0.98, 0, Math.PI * 2);
+  ctx.clip();
+  for (let i = 0; i < 6; i++) {
+    const px = p.x + Math.cos(time * 0.002 + i) * r * 0.5;
+    const py = p.y + Math.sin(time * 0.003 + i * 1.5) * r * 0.5;
+    const pr = r * 0.6 + Math.sin(time * 0.004 + i) * r * 0.2;
+    const pGrad = ctx.createRadialGradient(px, py, 0, px, py, pr);
+    pGrad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+    pGrad.addColorStop(1, 'rgba(255, 200, 0, 0)');
+    ctx.fillStyle = pGrad;
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Vivid Specular highlight
+  const hg = ctx.createRadialGradient(
+    p.x - r * 0.35, p.y - r * 0.35, 0,
+    p.x - r * 0.35, p.y - r * 0.35, r * 0.6
+  );
+  hg.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+  hg.addColorStop(0.2, 'rgba(255, 240, 180, 0.3)');
+  hg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = hg;
+  ctx.fill();
+
+  // Deep Terminator shadow for 3D depth
+  const tg = ctx.createRadialGradient(
+    p.x + r * 0.4, p.y + r * 0.4, 0,
+    p.x + r * 0.2, p.y + r * 0.2, r * 1.3
+  );
+  tg.addColorStop(0, 'rgba(20, 5, 0, 0.7)');
+  tg.addColorStop(0.4, 'rgba(40, 10, 0, 0.2)');
+  tg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = tg;
+  ctx.fill();
+
+  // Radiant inner rim light
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r - 1.5, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 240, 150, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Claimed badge (gold checkmark)
+  if (p.goldenBonusClaimed) {
+    const badgeR = Math.max(8, r * 0.25);
+    const badgeX = p.x + r * 0.55;
+    const badgeY = p.y - r * 0.55;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(255, 200, 0, 0.8)';
+    ctx.shadowBlur = 10;
+    
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFAA00'; // Bright amber
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(badgeX - badgeR * 0.45, badgeY + badgeR * 0.02);
+    ctx.lineTo(badgeX - badgeR * 0.1, badgeY + badgeR * 0.34);
+    ctx.lineTo(badgeX + badgeR * 0.5, badgeY - badgeR * 0.32);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Orbit ring — luminous golden tint
+  ctx.save();
+  ctx.setLineDash([4, 8]);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.orbitRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 220, 50, 0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 function drawPlanet(ctx: CanvasRenderingContext2D, p: Planet, time: number = 0) {
   if (p.planetType === 'earth') {
     drawEarth(ctx, p);
+    return;
+  }
+  if (p.planetType === 'golden') {
+    drawGoldenPlanet(ctx, p, time);
     return;
   }
   const [cr, cg_val, cb] = hexToRgb(p.color);
@@ -1687,7 +1851,18 @@ export function render(
     ctx.globalAlpha = bonusAlpha;
     ctx.textAlign = 'center';
 
-    if (state.scoreBonusLabel === 'earth') {
+    if (state.scoreBonusLabel === 'golden') {
+      ctx.shadowColor = 'rgba(255,215,0,0.7)';
+      ctx.shadowBlur = 20;
+      ctx.font = '800 32px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(`+${state.scoreBonus}`, w / 2, bonusY);
+      ctx.font = '600 13px "Inter", system-ui, sans-serif';
+      ctx.letterSpacing = '3px';
+      ctx.fillStyle = '#FFF8DC';
+      ctx.fillText('GOLDEN!', w / 2, bonusY + 22);
+      ctx.letterSpacing = '0px';
+    } else if (state.scoreBonusLabel === 'earth') {
       ctx.shadowColor = 'rgba(52,211,153,0.6)';
       ctx.shadowBlur = 15;
       ctx.font = '800 28px "Inter", system-ui, sans-serif';
@@ -1978,6 +2153,7 @@ export function renderMenu(
     rotation: time * 0.0004,
     planetType: 'gas',
     earthBonusClaimed: false,
+    goldenBonusClaimed: false,
   };
   drawPlanet(ctx, planet);
 
@@ -2196,6 +2372,7 @@ export function renderGameOver(
   distanceMeters: number,
   comboBonusEarned: number,
   earthBonusEarned: number,
+  goldenBonusEarned: number,
   deathReason: GameState['deathReason'],
   highScore: number,
   isNew: boolean,
@@ -2274,7 +2451,7 @@ export function renderGameOver(
   const breakdownX = cardX + 24;
   const breakdownY = cardY + 180;
   const breakdownW = cardW - 48;
-  const breakdownH = 92;
+  const breakdownH = 110;
   ctx.beginPath();
   ctx.roundRect(breakdownX, breakdownY, breakdownW, breakdownH, 12);
   ctx.fillStyle = 'rgba(12, 17, 36, 0.6)';
@@ -2317,6 +2494,16 @@ export function renderGameOver(
   ctx.fillStyle = '#34d399';
   ctx.letterSpacing = '0px';
   ctx.fillText(`+${earthBonusEarned}`, rightX, rowY);
+
+  rowY += rowGap;
+  ctx.textAlign = 'left';
+  ctx.letterSpacing = '1px';
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.5)';
+  ctx.fillText('GOLDEN BONUS', leftX, rowY);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#FFD700';
+  ctx.letterSpacing = '0px';
+  ctx.fillText(`+${goldenBonusEarned}`, rightX, rowY);
 
   // Mini divider before total
   ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
@@ -2675,7 +2862,7 @@ export function renderStats(
   ctx.fillRect(0, 0, w, h);
 
   const cardW = Math.min(320, w * 0.88);
-  const cardH = 450;
+  const cardH = 478;
   const cardX = (w - cardW) / 2;
   const cardY = (h - cardH) / 2 - 10;
 
@@ -2735,6 +2922,7 @@ export function renderStats(
   drawRow('TOTAL FLIGHTS', stats.totalFlights.toLocaleString());
   drawRow('TOTAL DISTANCE', `${stats.totalDistance.toLocaleString()}m`);
   drawRow('EARTHS FOUND', stats.totalEarths.toLocaleString(), '#34d399');
+  drawRow('GOLDENS FOUND', stats.totalGoldens.toLocaleString(), '#FFD700');
   drawRow('COMBO BONUS TOTAL', `+${stats.totalCombo.toLocaleString()}`, '#fbbf24');
   drawRow('CLOSE CALLS', stats.totalCloseCalls.toLocaleString(), '#fb923c');
   drawRow('BEST COMBO', `x${stats.bestCombo}`, '#fbbf24');
