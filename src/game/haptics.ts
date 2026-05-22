@@ -19,5 +19,6 @@ export const HAPTIC = {
   release: 14,
   death: [40, 40, 80],
   themeUnlock: [20, 30, 40],
+  goldenCapture: [15, 30, 15, 30, 40],
   click: 5,
 } as const;

@@ -3,7 +3,7 @@ export interface Vec2 {
   y: number;
 }
 
-export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth';
+export type PlanetType = 'rocky' | 'gas' | 'ice' | 'lava' | 'earth' | 'golden';
 export type DeathReason = 'asteroid' | 'comet' | 'out-of-bounds' | 'fell-behind' | '';
 export type PowerUpType = 'shield' | 'magnet' | 'wormhole' | 'time_dilation' | 'gravity_pulse';
 
@@ -21,6 +21,7 @@ export interface Planet {
   rotation: number;
   planetType: PlanetType;
   earthBonusClaimed: boolean;
+  goldenBonusClaimed: boolean;
 }
 
 export interface Asteroid {
@@ -119,6 +120,7 @@ export interface LifetimeStats {
   totalEarths: number;
   totalCombo: number;
   totalCloseCalls: number;
+  totalGoldens: number;
   bestCombo: number;
   cometsDodged: number;
   powerupsCollected: number;
@@ -150,7 +152,9 @@ export interface GameState {
   score: number;
   distanceMeters: number;
   comboBonusEarned: number;
+  goldenBonusEarned: number;
   earthBonusEarned: number;
+  goldensFound: number;
   highScore: number;
   isOrbiting: boolean;
   orbitPlanetIndex: number;
@@ -164,7 +168,7 @@ export interface GameState {
   phase: 'menu' | 'playing' | 'gameover' | 'stats' | 'leaderboard';
   scoreBonus: number;
   scoreBonusTimer: number;
-  scoreBonusLabel: 'combo' | 'earth' | '';
+  scoreBonusLabel: 'combo' | 'earth' | 'golden' | '';
   combo: number;
   comboTimer: number;
   comboMultiplier: number;

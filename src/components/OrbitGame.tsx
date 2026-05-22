@@ -453,6 +453,7 @@ const OrbitGame = () => {
       const animDist = Math.floor(state.distanceMeters * t);
       const animCombo = Math.floor(state.comboBonusEarned * t);
       const animEarth = Math.floor(state.earthBonusEarned * t);
+      const animGolden = Math.floor(state.goldenBonusEarned * t);
 
       // Tick sound cadence while counting — respects SFX volume setting.
       if (raw < 1 && state.settings.sfxVolume > 0 && state.score > 0) {
@@ -463,7 +464,7 @@ const OrbitGame = () => {
         }
       }
 
-      return { animScore, animDist, animCombo, animEarth };
+      return { animScore, animDist, animCombo, animEarth, animGolden };
     };
 
     const loop = (time: number) => {
@@ -511,6 +512,11 @@ const OrbitGame = () => {
               const p = state.planets[state.orbitPlanetIndex];
               if (p.planetType === 'earth' && state.scoreBonusLabel === 'earth' && state.scoreBonusTimer === 90) {
                 audio.playBonus();
+              }
+              // Check if we just captured a Golden planet
+              if (p.planetType === 'golden' && state.scoreBonusLabel === 'golden' && state.scoreBonusTimer === 100) {
+                audio.playGoldenCapture();
+                vibrate(HAPTIC.goldenCapture);
               }
             }
           }
@@ -578,7 +584,7 @@ const OrbitGame = () => {
           render(ctx, state, w, h, time);
           if (state.phase === 'gameover') {
             if (shareFlashRef.current > 0) shareFlashRef.current--;
-            const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
+            const { animScore, animDist, animCombo, animEarth, animGolden } = computeAnimScores(state, time);
             const retry = getRetryButtonBounds(w, h);
             const share = getShareButtonBounds(w, h);
             const mp = mousePosRef.current;
@@ -596,6 +602,7 @@ const OrbitGame = () => {
               animDist,
               animCombo,
               animEarth,
+              animGolden,
               state.deathReason,
               state.highScore,
               gameOverWasNewHighRef.current,
@@ -613,7 +620,7 @@ const OrbitGame = () => {
         if (shareFlashRef.current > 0) shareFlashRef.current--;
         updateVisualsOnly(state);
         render(ctx, state, w, h, time);
-        const { animScore, animDist, animCombo, animEarth } = computeAnimScores(state, time);
+        const { animScore, animDist, animCombo, animEarth, animGolden } = computeAnimScores(state, time);
         const retry = getRetryButtonBounds(w, h);
         const share = getShareButtonBounds(w, h);
         const mp = mousePosRef.current;
@@ -631,6 +638,7 @@ const OrbitGame = () => {
           animDist,
           animCombo,
           animEarth,
+          animGolden,
           state.deathReason,
           state.highScore,
           gameOverWasNewHighRef.current,

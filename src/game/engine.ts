@@ -83,7 +83,7 @@ export function saveSettings(settings: GameSettings) {
 function defaultLifetimeStats(): LifetimeStats {
   return {
     totalFlights: 0, totalDistance: 0, totalEarths: 0, totalCombo: 0,
-    totalCloseCalls: 0, bestCombo: 0, cometsDodged: 0, powerupsCollected: 0,
+    totalCloseCalls: 0, totalGoldens: 0, bestCombo: 0, cometsDodged: 0, powerupsCollected: 0,
     rocketUsage: { aerospace: 0, classic: 0, stealth: 0 },
   };
 }
@@ -100,7 +100,7 @@ export function saveLifetimeStats(stats: LifetimeStats) {
   localStorage.setItem('orbitLifetimeStats', JSON.stringify(stats));
 }
 
-function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
+function generatePlanet(minX: number, difficulty = 0, canvasH = 600, existingPlanets?: Planet[]): Planet {
   // Difficulty: smaller planets, farther apart over time
   const radiusMin = Math.max(16, 26 - difficulty * 2);
   const radiusMax = Math.max(24, 44 - difficulty * 3);
@@ -116,6 +116,19 @@ function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
   else if (typeRoll < 0.45) planetType = 'lava';
   else if (typeRoll < 0.65) planetType = 'gas';
   else planetType = 'rocky';
+
+  // Golden planet override — rare jackpot planet
+  // ~5% chance, never in the first 5 planets, at most 1 unclaimed golden on screen
+  if (existingPlanets && existingPlanets.length >= 5 && Math.random() < 0.05) {
+    const hasUnclaimedGolden = existingPlanets.some(p => p.planetType === 'golden' && !p.goldenBonusClaimed);
+    if (!hasUnclaimedGolden) {
+      planetType = 'golden';
+      // Slightly smaller radius to make capture trickier
+      const goldenRadius = rand(Math.max(14, radiusMin - 4), Math.max(20, radiusMax - 8));
+      // Override radius for golden planets
+      return buildPlanet(minX, spacingMin, spacingMax, goldenRadius, canvasH, planetType);
+    }
+  }
 
   // Choose colors based on type
   let color: string, glow: string, accent: string;
@@ -179,6 +192,78 @@ function generatePlanet(minX: number, difficulty = 0, canvasH = 600): Planet {
     rotation: Math.random() * Math.PI * 2,
     planetType,
     earthBonusClaimed: false,
+    goldenBonusClaimed: false,
+  };
+}
+
+function buildPlanet(minX: number, spacingMin: number, spacingMax: number, radius: number, canvasH: number, planetType: PlanetType): Planet {
+  // Choose colors based on type
+  let color: string, glow: string, accent: string;
+  switch (planetType) {
+    case 'golden':
+      color = '#FFD700';
+      glow = 'rgba(255,215,0,0.5)';
+      accent = '#DAA520';
+      break;
+    case 'earth':
+      color = '#3b82f6';
+      glow = 'rgba(59,130,246,0.45)';
+      accent = '#16a34a';
+      break;
+    case 'ice':
+      color = '#67e8f9';
+      glow = 'rgba(103,232,249,0.45)';
+      accent = '#0e7490';
+      break;
+    case 'lava':
+      color = '#ef4444';
+      glow = 'rgba(239,68,68,0.45)';
+      accent = '#f97316';
+      break;
+    case 'gas': {
+      const gasPalettes = [
+        { color: '#e8a838', glow: 'rgba(232,168,56,0.45)', accent: '#b87a1c' },
+        { color: '#a78bfa', glow: 'rgba(167,139,250,0.45)', accent: '#6d4cc4' },
+        { color: '#fb923c', glow: 'rgba(251,146,60,0.45)', accent: '#c2410c' },
+      ];
+      const gp = gasPalettes[Math.floor(Math.random() * gasPalettes.length)];
+      color = gp.color; glow = gp.glow; accent = gp.accent;
+      break;
+    }
+    default: {
+      const c = PLANET_PALETTES[Math.floor(Math.random() * PLANET_PALETTES.length)];
+      color = c.color; glow = c.glow; accent = c.accent;
+      break;
+    }
+  }
+
+  const craters: { x: number; y: number; r: number }[] = [];
+  const craterCount = (planetType === 'gas' || planetType === 'golden') ? 0 : Math.floor(rand(2, 5));
+  for (let i = 0; i < craterCount; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = Math.random() * radius * 0.65;
+    craters.push({
+      x: Math.cos(a) * d,
+      y: Math.sin(a) * d,
+      r: rand(radius * 0.08, radius * 0.18),
+    });
+  }
+
+  return {
+    x: minX + rand(spacingMin, spacingMax),
+    y: rand(canvasH * 0.18, canvasH * 0.82),
+    radius,
+    orbitRadius: radius + rand(40, 60),
+    color,
+    glowColor: glow,
+    accentColor: accent,
+    hasRing: planetType === 'gas' ? Math.random() < 0.5 : false,
+    ringTilt: rand(-0.4, 0.4),
+    craters,
+    rotation: Math.random() * Math.PI * 2,
+    planetType,
+    earthBonusClaimed: false,
+    goldenBonusClaimed: false,
   };
 }
 
@@ -358,12 +443,13 @@ export function createInitialState(canvasH = 600): GameState {
     rotation: 0,
     planetType: 'rocky',
     earthBonusClaimed: false,
+    goldenBonusClaimed: false,
   });
 
   // More starting planets, easier spacing
   let lastX = 200;
   for (let i = 0; i < 14; i++) {
-    const p = generatePlanet(lastX, 0, canvasH);
+    const p = generatePlanet(lastX, 0, canvasH, planets);
     planets.push(p);
     lastX = p.x;
   }
@@ -401,7 +487,9 @@ export function createInitialState(canvasH = 600): GameState {
     score: 0,
     distanceMeters: 0,
     comboBonusEarned: 0,
+    goldenBonusEarned: 0,
     earthBonusEarned: 0,
+    goldensFound: 0,
     highScore: parseInt(localStorage.getItem('orbitHighScore') || '0'),
     isOrbiting: true,
     orbitPlanetIndex: 0,
@@ -597,6 +685,37 @@ function tryAutoOrbit(state: GameState, frameCount: number): boolean {
         }
       }
 
+      // Golden bonus can be claimed only once per Golden planet.
+      if (p.planetType === 'golden' && !p.goldenBonusClaimed) {
+        p.goldenBonusClaimed = true;
+        state.goldensFound += 1;
+        const bonus = 100;
+        state.goldenBonusEarned += bonus;
+        state.scoreBonus = bonus;
+        state.scoreBonusTimer = 100;
+        state.scoreBonusLabel = 'golden';
+        // +1 combo boost on golden capture
+        state.combo += 1;
+        state.comboMultiplier = Math.min(5, 1 + state.combo * 0.5);
+        state.maxCombo = Math.max(state.maxCombo, state.combo);
+        // Lavish golden particle burst
+        const goldenParticles = state.settings.lowGraphics ? 16 : 32;
+        for (let k = 0; k < goldenParticles; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = rand(1, 4);
+          state.particles.push({
+            x: r.x,
+            y: r.y,
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp,
+            life: 60,
+            maxLife: 60,
+            color: k % 3 === 0 ? '#FFD700' : k % 3 === 1 ? '#FFA500' : '#ffffff',
+            size: rand(2.5, 5),
+          });
+        }
+      }
+
       return true; // captured
     }
   }
@@ -672,7 +791,7 @@ function activatePowerUp(state: GameState, type: PowerUpType): void {
     const warpDistance = 500;
     state.rocket.x += warpDistance;
     state.distanceMeters += Math.floor(warpDistance / 10);
-    state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
+    state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned + state.goldenBonusEarned;
     state.wormholeFlashTimer = 30; // visual flash
     state.screenShake = { intensity: 6, duration: 20 };
     // Reset orbit state so we don't keep orbiting a planet we're now far from
@@ -942,7 +1061,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
   state.camera.y = 0;
 
   state.distanceMeters = Math.max(state.distanceMeters, Math.floor(r.x / 10));
-  state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned;
+  state.score = state.distanceMeters + state.comboBonusEarned + state.earthBonusEarned + state.goldenBonusEarned;
 
   // Theme milestone detection — score-based so combo/Earth bonuses count.
   const newThemeIdx = getThemeIndex(state.score);
@@ -957,7 +1076,7 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
 
   const lastPlanet = state.planets[state.planets.length - 1];
   if (r.x > lastPlanet.x - canvasW * 1.5) {
-    state.planets.push(generatePlanet(lastPlanet.x, state.difficulty, canvasH));
+    state.planets.push(generatePlanet(lastPlanet.x, state.difficulty, canvasH, state.planets));
   }
   const lastAsteroid = state.asteroids[state.asteroids.length - 1];
   if (lastAsteroid && r.x > lastAsteroid.x - canvasW * 1.5) {
@@ -1179,6 +1298,7 @@ export function buildShareMessage(state: GameState): void {
   const distance = state.distanceMeters.toLocaleString();
   const comboBonus = state.comboBonusEarned.toLocaleString();
   const earthBonus = state.earthBonusEarned.toLocaleString();
+  const goldenBonus = state.goldenBonusEarned.toLocaleString();
 
   const lines = [
     '🚀 ORBIT SLINGSHOT 🚀',
@@ -1192,6 +1312,7 @@ export function buildShareMessage(state: GameState): void {
 
   if (state.maxCombo > 1) lines.push(`🔥 Max Combo: x${state.maxCombo}`);
   if (state.earthsFound > 0) lines.push(`🌍 Earths Found: ${state.earthsFound}`);
+  if (state.goldensFound > 0) lines.push(`🌟 Goldens Found: ${state.goldensFound} (+${goldenBonus}m)`);
   if (state.powerupsCollectedThisRun > 0) lines.push(`⚡ Power-ups: ${state.powerupsCollectedThisRun}`);
   if (state.closeCalls > 0) lines.push(`😅 Close Calls: ${state.closeCalls}`);
 
@@ -1209,6 +1330,7 @@ export function updateLifetimeStatsOnDeath(state: GameState) {
   ls.totalEarths += state.earthsFound;
   ls.totalCombo += state.comboBonusEarned;
   ls.totalCloseCalls += state.closeCalls;
+  ls.totalGoldens += state.goldensFound;
   ls.bestCombo = Math.max(ls.bestCombo, state.maxCombo);
   const rt = state.settings.rocketType as keyof typeof ls.rocketUsage;
   ls.rocketUsage[rt] = (ls.rocketUsage[rt] || 0) + 1;
