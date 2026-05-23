@@ -1,4 +1,4 @@
-import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings, Comet, LifetimeStats, PowerUp, PowerUpType, ActiveEffect } from './types';
+import { GameState, Planet, PlanetType, Asteroid, Star, Nebula, Particle, SolarFlare, GameSettings, Comet, LifetimeStats, PowerUp, PowerUpType, ActiveEffect, BackgroundGalaxy } from './types';
 import { getThemeIndex } from './themes';
 
 const ROCKET_SPEED = 4.2;
@@ -42,6 +42,15 @@ const STAR_COLORS = [
   '#fff5e0',   // warm white
   '#ffe4c4',   // warm peach
   '#d4e4ff',   // pale blue
+];
+
+const GALAXY_COLORS: [number, number, number][] = [
+  [200, 170, 100],  // warm gold
+  [120, 150, 220],  // cool blue
+  [190, 120, 160],  // rose
+  [140, 110, 200],  // violet
+  [100, 180, 170],  // teal
+  [220, 160, 100],  // amber
 ];
 
 function rand(min: number, max: number) {
@@ -343,6 +352,28 @@ function generateNebulae(): Nebula[] {
   return nebs;
 }
 
+function generateBackgroundGalaxies(canvasH = 650): BackgroundGalaxy[] {
+  const galaxies: BackgroundGalaxy[] = [];
+  for (let i = 0; i < 6; i++) {
+    const color = GALAXY_COLORS[Math.floor(Math.random() * GALAXY_COLORS.length)];
+    const type: 'spiral' | 'elliptical' = Math.random() < 0.5 ? 'spiral' : 'elliptical';
+    galaxies.push({
+      x: rand(0, 8000),
+      y: rand(40, canvasH - 40),
+      radius: rand(150, 380),
+      rotation: Math.random() * Math.PI * 2,
+      rotationSpeed: rand(0.00003, 0.00012) * (Math.random() < 0.5 ? 1 : -1),
+      parallax: rand(0.01, 0.04),
+      type,
+      color,
+      opacity: rand(0.04, 0.1),
+      armCount: type === 'spiral' ? (Math.random() < 0.6 ? 2 : 3) : 0,
+      elongation: type === 'elliptical' ? rand(0.4, 0.7) : 1,
+    });
+  }
+  return galaxies;
+}
+
 function generateSolarFlare(minX: number, canvasH: number): SolarFlare {
   const h = rand(40, 100);
   return {
@@ -481,6 +512,7 @@ export function createInitialState(canvasH = 600): GameState {
 
     stars: generateStars(),
     nebulae: generateNebulae(),
+    backgroundGalaxies: generateBackgroundGalaxies(canvasH),
     particles: [],
     solarFlares: [],
     camera: { x: 0, y: 0 },
@@ -1175,6 +1207,30 @@ export function update(state: GameState, canvasW: number, canvasH: number, frame
           y: rand(50, canvasH - 50),
           radius: rand(150, 300),
           color: NEBULA_COLORS[Math.floor(Math.random() * NEBULA_COLORS.length)],
+        });
+      }
+    }
+  }
+
+  // Extend background galaxies as player travels
+  if (state.backgroundGalaxies.length > 0) {
+    const maxGalX = state.backgroundGalaxies.reduce((m, g) => Math.max(m, g.x), 0);
+    if (r.x > maxGalX - canvasW * 3) {
+      for (let i = 0; i < 2; i++) {
+        const color = GALAXY_COLORS[Math.floor(Math.random() * GALAXY_COLORS.length)];
+        const type: 'spiral' | 'elliptical' = Math.random() < 0.5 ? 'spiral' : 'elliptical';
+        state.backgroundGalaxies.push({
+          x: maxGalX + rand(800, 2500),
+          y: rand(40, canvasH - 40),
+          radius: rand(150, 380),
+          rotation: Math.random() * Math.PI * 2,
+          rotationSpeed: rand(0.00003, 0.00012) * (Math.random() < 0.5 ? 1 : -1),
+          parallax: rand(0.01, 0.04),
+          type,
+          color,
+          opacity: rand(0.04, 0.1),
+          armCount: type === 'spiral' ? (Math.random() < 0.6 ? 2 : 3) : 0,
+          elongation: type === 'elliptical' ? rand(0.4, 0.7) : 1,
         });
       }
     }

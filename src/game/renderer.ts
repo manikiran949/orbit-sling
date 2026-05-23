@@ -1,4 +1,4 @@
-import { GameState, Planet, Comet, PowerUpType } from './types';
+import { GameState, Planet, Comet, PowerUpType, BackgroundGalaxy } from './types';
 import { getActiveTheme, THEMES, parseColor } from './themes';
 
 export const GAME_OVER_LAYOUT = {
@@ -1308,6 +1308,89 @@ function drawPowerUp(ctx: CanvasRenderingContext2D, x: number, y: number, type: 
   ctx.restore();
 }
 
+function drawBackgroundGalaxy(
+  ctx: CanvasRenderingContext2D,
+  gx: number,
+  gy: number,
+  galaxy: BackgroundGalaxy,
+  time: number,
+  lowGraphics: boolean = false
+) {
+  const { radius, opacity, type, color, armCount, elongation } = galaxy;
+  const rot = galaxy.rotation + time * galaxy.rotationSpeed;
+  const [cr, cg, cb] = color;
+
+  ctx.save();
+  ctx.translate(gx, gy);
+  ctx.rotate(rot);
+
+  if (type === 'elliptical') {
+    // Stretched elliptical shape
+    ctx.save();
+    ctx.scale(1, elongation);
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    grad.addColorStop(0, `rgba(${Math.min(255, cr + 60)},${Math.min(255, cg + 60)},${Math.min(255, cb + 50)},${opacity * 0.9})`);
+    grad.addColorStop(0.12, `rgba(${Math.min(255, cr + 30)},${Math.min(255, cg + 30)},${Math.min(255, cb + 20)},${opacity * 0.6})`);
+    grad.addColorStop(0.35, `rgba(${cr},${cg},${cb},${opacity * 0.3})`);
+    grad.addColorStop(0.65, `rgba(${cr},${cg},${cb},${opacity * 0.08})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    // Spiral galaxy — halo, core, and arms
+    // Outer halo
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    halo.addColorStop(0, `rgba(${Math.min(255, cr + 20)},${Math.min(255, cg + 20)},${Math.min(255, cb + 15)},${opacity * 0.25})`);
+    halo.addColorStop(0.3, `rgba(${cr},${cg},${cb},${opacity * 0.1})`);
+    halo.addColorStop(0.7, `rgba(${cr},${cg},${cb},${opacity * 0.02})`);
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+
+    // Bright core
+    const coreR = radius * 0.1;
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
+    core.addColorStop(0, `rgba(${Math.min(255, cr + 80)},${Math.min(255, cg + 80)},${Math.min(255, cb + 60)},${Math.min(1, opacity * 1.5)})`);
+    core.addColorStop(0.5, `rgba(${Math.min(255, cr + 40)},${Math.min(255, cg + 40)},${Math.min(255, cb + 30)},${opacity * 0.5})`);
+    core.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Spiral arms — dots along a logarithmic spiral
+    if (!lowGraphics) {
+      for (let arm = 0; arm < armCount; arm++) {
+        const baseAngle = (arm / armCount) * Math.PI * 2;
+        const steps = 6;
+        for (let t = 0; t < steps; t++) {
+          const frac = (t + 1) / (steps + 1);
+          const spiralR = radius * 0.08 + frac * radius * 0.7;
+          const spiralAngle = baseAngle + frac * Math.PI * 1.6;
+          const ax = Math.cos(spiralAngle) * spiralR;
+          const ay = Math.sin(spiralAngle) * spiralR;
+          const dotR = radius * (0.14 - frac * 0.06);
+          const alpha = opacity * (1 - frac * 0.6) * 0.35;
+
+          const armGlow = ctx.createRadialGradient(ax, ay, 0, ax, ay, dotR);
+          armGlow.addColorStop(0, `rgba(${Math.min(255, cr + 20)},${Math.min(255, cg + 20)},${Math.min(255, cb + 15)},${alpha})`);
+          armGlow.addColorStop(0.5, `rgba(${cr},${cg},${cb},${alpha * 0.4})`);
+          armGlow.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = armGlow;
+          ctx.beginPath();
+          ctx.arc(ax, ay, dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
 export function render(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -1356,6 +1439,13 @@ export function render(
   ctx.fillStyle = dust;
   ctx.fillRect(-dustRY, -dustRY, dustRY * 2, dustRY * 2);
   ctx.restore();
+
+  // Background galaxies — very distant, barely moving
+  for (const gal of state.backgroundGalaxies) {
+    const gx = gal.x - cx * gal.parallax;
+    if (gx + gal.radius < -100 || gx - gal.radius > w + 100) continue;
+    drawBackgroundGalaxy(ctx, gx, gal.y, gal, time, settings.lowGraphics);
+  }
 
   // Nebulae — theme-tinted, layered with multi-stop gradients for depth
   for (let ni = 0; ni < state.nebulae.length; ni++) {
@@ -2086,6 +2176,25 @@ export function renderMenu(
   dustBand.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = dustBand;
   ctx.fillRect(0, 0, w, h);
+
+  // Background galaxies (static for menu ambiance)
+  {
+    const galaxyData = [
+      { gx: w * 0.12, gy: h * 0.3, r: 200, c: [200, 170, 100] as [number, number, number], t: 'spiral' as const, rs: 0.00005 },
+      { gx: w * 0.85, gy: h * 0.15, r: 160, c: [120, 150, 220] as [number, number, number], t: 'elliptical' as const, rs: 0.00008 },
+      { gx: w * 0.6, gy: h * 0.82, r: 180, c: [190, 120, 160] as [number, number, number], t: 'spiral' as const, rs: -0.00006 },
+    ];
+    for (const g of galaxyData) {
+      drawBackgroundGalaxy(ctx, g.gx, g.gy, {
+        x: g.gx, y: g.gy, radius: g.r,
+        rotation: 0, rotationSpeed: g.rs,
+        parallax: 0, type: g.t,
+        color: g.c, opacity: 0.07,
+        armCount: g.t === 'spiral' ? 2 : 0,
+        elongation: g.t === 'elliptical' ? 0.5 : 1,
+      }, time);
+    }
+  }
 
   // Animated nebula blobs
   const nebulaData = [
