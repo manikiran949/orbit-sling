@@ -63,6 +63,20 @@ export interface Nebula {
   color: string;
 }
 
+export interface BackgroundGalaxy {
+  x: number;
+  y: number;
+  radius: number;
+  rotation: number;
+  rotationSpeed: number;
+  parallax: number;
+  type: 'spiral' | 'elliptical';
+  color: [number, number, number];
+  opacity: number;
+  armCount: number;
+  elongation: number;
+}
+
 export interface Particle {
   x: number;
   y: number;
@@ -146,6 +160,7 @@ export interface GameState {
 
   stars: Star[];
   nebulae: Nebula[];
+  backgroundGalaxies: BackgroundGalaxy[];
   particles: Particle[];
   solarFlares: SolarFlare[];
   camera: Vec2;
